@@ -17,7 +17,7 @@ add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
 
 add_subdirectory(libevent)
 
-include_directories(stomptalk/include stompconn/include libevent/include ${CMAKE_CURRENT_DIR} ${CMAKE_CURRENT_BINARY_DIR}/libevent/include)
+include_directories(stomptalk/include stompconn/include libevent/include ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/libevent/include)
 
 add_subdirectory(stomptalk)
 add_subdirectory(stompconn)
