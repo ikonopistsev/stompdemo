@@ -28,3 +28,7 @@ add_subdirectory(stompconn)
 add_executable(stompdemo main.cpp)
 
 target_link_libraries(stompdemo PRIVATE event stomptalk stompconn)
+
+if (WIN32)
+  target_link_libraries(stompdemo PRIVATE ws2_32)
+endif()
