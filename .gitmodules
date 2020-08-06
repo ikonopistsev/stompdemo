@@ -1,0 +1,15 @@
+[submodule "libevent"]
+	path = libevent
+	url = https://github.com/libevent/libevent
+[submodule "btdef"]
+	path = btdef
+	url = https://github.com/ikonopistsev/btdef.git
+[submodule "btpro"]
+	path = btpro
+	url = https://github.com/ikonopistsev/btpro.git
+[submodule "stompconn"]
+	path = stompconn
+	url = https://github.com/ikonopistsev/stompconn.git
+[submodule "stomptalk"]
+	path = stomptalk
+	url = https://github.com/ikonopistsev/stomptalk.git
