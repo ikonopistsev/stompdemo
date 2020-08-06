@@ -139,12 +139,15 @@ public:
 
     void on_logon(stompconn::packet logon)
     {
-        cout() << logon.payload() << endl2;
+        cout() << logon.dump() << endl2;
+
         if (logon)
         {
             stompconn::subscribe subs("/queue/mt4_trades",
                 [&](stompconn::packet p) {
-                    //cout() << p.dump() << endl2;
+
+                    cout() << p.dump() << endl2;
+
                     if (p)
                     {
                         stompconn::send send("/queue/mt4_trades");
@@ -152,18 +155,18 @@ public:
                         conn_.send(std::move(send), [&](stompconn::packet s){
                             if (s)
                             {
-                                //cout() << s.dump() << endl2;
+                                cout() << s.dump() << endl2;
                             }
                             else
                             {
-                                cerr() << s.payload().str() << std::endl;
+                                cerr() << s.dump() << std::endl;
                                 on_event(BEV_EVENT_EOF);
                             }
                         });
                     }
                     else
                     {
-                        cerr() << p.payload().str() << std::endl;
+                        cerr() << p.dump() << std::endl;
                         on_event(BEV_EVENT_EOF);
                     }
             });
@@ -171,7 +174,8 @@ public:
             conn_.subscribe(std::move(subs), [&](stompconn::packet p){
                 if (p)
                 {
-                    cout() << p.payload() << endl2;
+                    cout() << p.dump() << endl2;
+
                     stompconn::send send("/queue/mt4_trades");
                     send.payload(btpro::buffer(btdef::date::to_log_time()));
                     conn_.send(std::move(send), [&](stompconn::packet s){
@@ -181,21 +185,21 @@ public:
                         }
                         else
                         {
-                            cerr() << s.payload().str() << std::endl;
+                            cerr() << s.dump() << std::endl;
                             on_event(BEV_EVENT_EOF);
                         }
                     });
                 }
                 else
                 {
-                    cerr() << p.payload().str() << std::endl;
+                    cerr() << p.dump() << std::endl;
                     on_event(BEV_EVENT_EOF);
                 }
             });
         }
         else
         {
-            cerr() << logon.payload().str() << std::endl;
+            cerr() << logon.dump() << std::endl;
             on_event(BEV_EVENT_EOF);
         }
     }
