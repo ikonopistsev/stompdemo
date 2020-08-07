@@ -82,7 +82,7 @@ btpro::queue create_queue()
     return q;
 }
 
-class peer
+class peer1
 {
     typedef stompconn::connection connection_type;
 
@@ -92,12 +92,12 @@ class peer
     int port_{};
 
     connection_type conn_{ queue_,
-        std::bind(&peer::on_event, this, std::placeholders::_1),
-        std::bind(&peer::on_connect, this)
+        std::bind(&peer1::on_event, this, std::placeholders::_1),
+        std::bind(&peer1::on_connect, this)
     };
 
 public:
-    peer(btpro::queue_ref queue, btpro::dns_ref dns)
+    peer1(btpro::queue_ref queue, btpro::dns_ref dns)
         : queue_(queue)
         , dns_(dns)
     {   }
@@ -134,7 +134,7 @@ public:
         stompconn::logon logon("two", "max", "maxtwo");
         //logon.push(stomptalk::header::receipt("123"));
         conn_.logon(std::move(logon),
-            std::bind(&peer::on_logon, this, std::placeholders::_1));
+            std::bind(&peer1::on_logon, this, std::placeholders::_1));
     }
 
     void on_logon(stompconn::packet logon)
@@ -205,6 +205,94 @@ public:
     }
 };
 
+// тест подключения подписки и отписки
+class peer2
+{
+    typedef stompconn::connection connection_type;
+    btpro::queue_ref queue_;
+
+    connection_type conn_{ queue_,
+        std::bind(&peer2::on_event, this, std::placeholders::_1),
+        std::bind(&peer2::on_connect, this)
+    };
+
+public:
+    peer2(btpro::queue_ref queue)
+        : queue_(queue)
+    {   }
+
+    template<class Rep, class Period>
+    void connect(std::chrono::duration<Rep, Period> timeout)
+    {
+        conn_.connect(btpro::ipv4::loopback(61613), timeout);
+    }
+
+    void on_event(short)
+    {
+        // любое событие приводик к закрытию сокета
+        queue_.once(std::chrono::seconds(5), [&](...){
+            connect(std::chrono::seconds(20));
+        });
+    }
+
+    void on_connect()
+    {
+        stompconn::logon logon("two", "max", "maxtwo");
+        conn_.logon(std::move(logon),
+            std::bind(&peer2::on_logon, this, std::placeholders::_1));
+    }
+
+    void on_logon(stompconn::packet logon)
+    {
+        cout() << logon.dump() << endl2;
+
+        // проверяем была ли ошибка
+        if (logon)
+        {
+            // если ошибки не было
+            // формируем запрос на подписку
+            stompconn::subscribe subs("/queue/mt4_trades",
+                                      [&](stompconn::packet msg) {
+                // просто выдаем пришедшие по подписке данные
+                cout() << msg.dump() << std::endl;
+
+                if (msg)
+                {
+                    // получаем идентификатор подписки
+                    auto sub_id = msg.get(stomptalk::header::subscription());
+
+                    // отписываемся
+                    conn_.unsubscribe(sub_id, [&](stompconn::packet unsubs){
+                        // просто выдаем пришедшие по подписке данные
+                        cout() << unsubs.dump() << std::endl;
+
+                        if (!unsubs)
+                            disconnect();
+                    });
+                }
+                else
+                    disconnect();
+            });
+
+            // подписываемся
+            conn_.subscribe(std::move(subs), [&](stompconn::packet subs){
+                // дамп пакета
+                cout() << subs.dump() << endl2;
+
+                if (!subs)
+                    disconnect();
+            });
+        }
+        else // была ошика - отключаемся
+            disconnect();
+    }
+
+    void disconnect()
+    {
+        on_event(BEV_EVENT_EOF);
+    }
+};
+
 int main()
 {
     try
@@ -215,7 +303,8 @@ int main()
         auto queue = create_queue();
         dns.create(queue, btpro::dns_initialize_nameservers);
 
-        peer p(queue, dns);
+        peer1 p1(queue, dns);
+        peer2 p2(queue);
 
 #ifndef WIN32
         auto f = [&](auto...) {
@@ -233,7 +322,8 @@ int main()
         sterm.add();
 #endif // _WIN32
 
-        p.connect("127.0.0.1", 61613, std::chrono::seconds(20));
+        //p1.connect("127.0.0.1", 61613, std::chrono::seconds(20));
+        p2.connect(std::chrono::seconds(20));
 
         queue.dispatch();
     }
