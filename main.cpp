@@ -217,7 +217,7 @@ class peer2
     };
 
 public:
-    peer2(btpro::queue_ref queue)
+    explicit peer2(btpro::queue_ref queue)
         : queue_(queue)
     {   }
 
@@ -227,8 +227,9 @@ public:
         conn_.connect(btpro::ipv4::loopback(61613), timeout);
     }
 
-    void on_event(short)
+    void on_event(short ef)
     {
+        cout() << "disconnect: " << ef << std::endl;
         // любое событие приводик к закрытию сокета
         queue_.once(std::chrono::seconds(5), [&](...){
             connect(std::chrono::seconds(20));
@@ -303,7 +304,9 @@ int main()
         auto queue = create_queue();
         dns.create(queue, btpro::dns_initialize_nameservers);
 
+        // эхо
         peer1 p1(queue, dns);
+        // отписка
         peer2 p2(queue);
 
 #ifndef WIN32
