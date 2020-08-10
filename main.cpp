@@ -3,6 +3,7 @@
 #include "btpro/uri.hpp"
 #include "btdef/date.hpp"
 #include "btpro/tcp/bevfn.hpp"
+#include "btpro/sock_addr.hpp"
 #include "btdef/ref.hpp"
 #include "stomptalk/parser.hpp"
 #include "stomptalk/parser_hook.hpp"
@@ -222,7 +223,7 @@ public:
     {   }
 
     template<class Rep, class Period>
-    void connect(std::chrono::duration<Rep, Period> timeout)
+    void connect_localhost(std::chrono::duration<Rep, Period> timeout)
     {
         conn_.connect(btpro::ipv4::loopback(61613), timeout);
     }
@@ -232,7 +233,7 @@ public:
         cout() << "disconnect: " << ef << std::endl;
         // любое событие приводик к закрытию сокета
         queue_.once(std::chrono::seconds(5), [&](...){
-            connect(std::chrono::seconds(20));
+            connect_localhost(std::chrono::seconds(20));
         });
     }
 
@@ -294,6 +295,99 @@ public:
     }
 };
 
+class peer3
+{
+    typedef stompconn::connection connection_type;
+
+    btpro::queue_ref queue_;
+    btpro::dns_ref dns_;
+    std::string host_{};
+    int port_{};
+
+    connection_type conn_{ queue_,
+        std::bind(&peer3::on_event, this, std::placeholders::_1),
+        std::bind(&peer3::on_connect, this)
+    };
+
+public:
+    peer3(btpro::queue_ref queue, btpro::dns_ref dns)
+        : queue_(queue)
+        , dns_(dns)
+    {   }
+
+    template<class Rep, class Period>
+    void connect(const std::string& host, int port,
+                 std::chrono::duration<Rep, Period> timeout)
+    {
+        cout([&]{
+            std::string text;
+            text += mkview("connect to: ");
+            text += host;
+            if (port)
+                text += ' ' + std::to_string(port);
+            return text;
+        });
+
+        conn_.connect(dns_, host, port, timeout);
+    }
+
+    void on_event(short)
+    {
+        // любое событие приводик к закрытию сокета
+        queue_.once(std::chrono::seconds(5), [&](...){
+            connect(host_, port_, std::chrono::seconds(20));
+        });
+    }
+
+    void on_connect()
+    {
+        stompconn::logon logon("two", "max", "maxtwo");
+        //logon.push(stomptalk::header::receipt("123"));
+        conn_.logon(std::move(logon),
+            std::bind(&peer3::on_logon, this, std::placeholders::_1));
+    }
+
+    void on_logon(stompconn::packet logon)
+    {
+        if (logon)
+        {
+            cout() << logon.session() << std::endl;
+
+            stompconn::subscribe subs("/queue/mt4_trades",
+                [&](stompconn::packet p) {
+                    auto content = p.payload().str();
+
+                    if (!content.empty())
+                        cout() << "RECEIVE << " << p.payload().str() << endl2;
+                    else
+                        cout() << "RECEIVE << " << p.dump() << endl2;
+
+                    if (!p)
+                        on_event(BEV_EVENT_EOF);
+            });
+
+            conn_.subscribe(std::move(subs), [&](stompconn::packet p){
+//                if (p)
+//                {
+//                    stompconn::send send("/exchange/mt4_trade/12345678");
+//                    send.push(stomptalk::header::custom("routingKey", "routingKey"));
+//                    send.payload(btpro::buffer(std::string("PAYLOAD: ") + btdef::date::to_log_time()));
+//                    conn_.send(std::move(send), [&](stompconn::packet s){
+//                        if (!s)
+//                            on_event(BEV_EVENT_EOF);
+//                    });
+//                }
+//                else
+//                    on_event(BEV_EVENT_EOF);
+            });
+        }
+        else
+            on_event(BEV_EVENT_EOF);
+    }
+};
+
+
+
 int main()
 {
     try
@@ -308,6 +402,8 @@ int main()
         peer1 p1(queue, dns);
         // отписка
         peer2 p2(queue);
+        // маршруты
+        peer3 p3(queue, dns);
 
 #ifndef WIN32
         auto f = [&](auto...) {
@@ -325,8 +421,9 @@ int main()
         sterm.add();
 #endif // _WIN32
 
-        //p1.connect("127.0.0.1", 61613, std::chrono::seconds(20));
-        p2.connect(std::chrono::seconds(20));
+        //p1.connect("threadtux", 61613, std::chrono::seconds(20));
+        //p2.connect_localhost(std::chrono::seconds(20));
+        p3.connect("threadtux", 61613, std::chrono::seconds(20));
 
         queue.dispatch();
     }
