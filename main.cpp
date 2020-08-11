@@ -328,11 +328,15 @@ public:
             return text;
         });
 
+        host_ = host;
+        port_ = port;
+
         conn_.connect(dns_, host, port, timeout);
     }
 
-    void on_event(short)
+    void on_event(short ef)
     {
+        cout() << "disconnect: " << ef << std::endl;
         // любое событие приводик к закрытию сокета
         queue_.once(std::chrono::seconds(5), [&](...){
             connect(host_, port_, std::chrono::seconds(20));
@@ -364,25 +368,37 @@ public:
 
                     if (!p)
                         on_event(BEV_EVENT_EOF);
+
+                    if (p.must_ack())
+                    {
+                        conn_.nack(p, [&](stompconn::packet a){
+                            if (!a)
+                            {
+                                cout() << p.dump() << endl2;
+                                on_event(BEV_EVENT_EOF);
+                            }
+                        });
+                    }
+
+                    conn_.logout([&](stompconn::packet l) {
+                        cout() << l.dump() << endl2;
+                    });
             });
 
+            subs.push(stomptalk::header::ask_client_individual());
             conn_.subscribe(std::move(subs), [&](stompconn::packet p){
-//                if (p)
-//                {
-//                    stompconn::send send("/exchange/mt4_trade/12345678");
-//                    send.push(stomptalk::header::custom("routingKey", "routingKey"));
-//                    send.payload(btpro::buffer(std::string("PAYLOAD: ") + btdef::date::to_log_time()));
-//                    conn_.send(std::move(send), [&](stompconn::packet s){
-//                        if (!s)
-//                            on_event(BEV_EVENT_EOF);
-//                    });
-//                }
-//                else
-//                    on_event(BEV_EVENT_EOF);
+                if (!p)
+                {
+                    cout() << p.dump() << endl2;
+                    on_event(BEV_EVENT_EOF);
+                }
             });
         }
         else
+        {
+            cout() << logon.dump() << endl2;
             on_event(BEV_EVENT_EOF);
+        }
     }
 };
 
@@ -399,9 +415,9 @@ int main()
         dns.create(queue, btpro::dns_initialize_nameservers);
 
         // эхо
-        peer1 p1(queue, dns);
+        // peer1 p1(queue, dns);
         // отписка
-        peer2 p2(queue);
+        // peer2 p2(queue);
         // маршруты
         peer3 p3(queue, dns);
 
