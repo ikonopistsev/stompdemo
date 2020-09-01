@@ -79,6 +79,7 @@ btpro::queue create_queue()
     conf.require_features(EV_FEATURE_ET|EV_FEATURE_O1);
 #endif //
     btpro::queue q;
+
     q.create(conf);
     return q;
 }
@@ -91,6 +92,7 @@ class peer1
     btpro::dns_ref dns_;
     std::string host_{};
     int port_{};
+    std::size_t count_{};
 
     connection_type conn_{ queue_,
         std::bind(&peer1::on_event, this, std::placeholders::_1),
@@ -119,6 +121,8 @@ public:
         host_ = host;
         port_ = port;
 
+
+
         conn_.connect(dns_, host, port, timeout);
     }
 
@@ -134,7 +138,7 @@ public:
     {
         stompconn::logon logon("two", "max", "maxtwo");
         //logon.push(stomptalk::header::receipt("123"));
-        conn_.logon(std::move(logon),
+        conn_.send(std::move(logon),
             std::bind(&peer1::on_logon, this, std::placeholders::_1));
     }
 
@@ -147,7 +151,7 @@ public:
             stompconn::subscribe subs("/queue/mt4_trades",
                 [&](stompconn::packet p) {
 
-                    cout() << p.dump() << endl2;
+                    //cout() << p.dump() << endl2;
 
                     if (p)
                     {
@@ -156,7 +160,9 @@ public:
                         conn_.send(std::move(send), [&](stompconn::packet s){
                             if (s)
                             {
-                                cout() << s.dump() << endl2;
+                                //cout() << s.dump() << endl2;
+                                if (++count_ == 100000)
+                                    exit(0);
                             }
                             else
                             {
@@ -172,17 +178,19 @@ public:
                     }
             });
 
-            conn_.subscribe(std::move(subs), [&](stompconn::packet p){
+            conn_.send(std::move(subs), [&](stompconn::packet p){
                 if (p)
                 {
-                    cout() << p.dump() << endl2;
+                    //cout() << p.dump() << endl2;
 
                     stompconn::send send("/queue/mt4_trades");
                     send.payload(btpro::buffer(btdef::date::to_log_time()));
                     conn_.send(std::move(send), [&](stompconn::packet s){
                         if (s)
                         {
-                            cout() << s.dump() << endl2;
+                            //cout() << s.dump() << endl2;
+                            if (++count_ == 100000)
+                                exit(0);
                         }
                         else
                         {
@@ -240,7 +248,7 @@ public:
     void on_connect()
     {
         stompconn::logon logon("two", "max", "maxtwo");
-        conn_.logon(std::move(logon),
+        conn_.send(std::move(logon),
             std::bind(&peer2::on_logon, this, std::placeholders::_1));
     }
 
@@ -277,7 +285,7 @@ public:
             });
 
             // подписываемся
-            conn_.subscribe(std::move(subs), [&](stompconn::packet subs){
+            conn_.send(std::move(subs), [&](stompconn::packet subs){
                 // дамп пакета
                 cout() << subs.dump() << endl2;
 
@@ -345,8 +353,7 @@ public:
 
     void on_connect()
     {
-        stompconn::logon logon("two", "max", "maxtwo");
-        conn_.logon(std::move(logon),
+        conn_.send(stompconn::logon("two", "max", "maxtwo"),
             std::bind(&peer3::on_logon, this, std::placeholders::_1));
     }
 
@@ -387,7 +394,7 @@ public:
             });
 
             subs.push(stomptalk::header::ask_client_individual());
-            conn_.subscribe(std::move(subs), [&](stompconn::packet p){
+            conn_.send(std::move(subs), [&](stompconn::packet p){
                 if (!p)
                 {
                     cout() << p.dump() << endl2;
@@ -459,8 +466,8 @@ public:
 
     void on_connect()
     {
-        stompconn::logon logon("two", "max", "maxtwo");
-        conn_.logon(std::move(logon),
+        ;
+        conn_.send(stompconn::logon("two", "max", "maxtwo"),
             std::bind(&peer4::on_logon, this, std::placeholders::_1));
     }
 
@@ -470,7 +477,6 @@ public:
         {
             cout() << logon.session() << std::endl;
 
-
             {
                 stompconn::send frame("/exchange/test/@12345");
                 frame.push(stomptalk::header::message_ttl("600000"));
@@ -479,8 +485,6 @@ public:
                     cout() << p.dump() << endl2;
                 });
             }
-
-
         }
         else
         {
@@ -501,12 +505,12 @@ int main()
         dns.create(queue, btpro::dns_initialize_nameservers);
 
         // эхо
-        // peer1 p1(queue, dns);
+        peer1 p1(queue, dns);
         // отписка
         // peer2 p2(queue);
         // маршруты
         //peer3 p3(queue, dns);
-        peer4 p4(queue, dns);
+        //peer4 p4(queue, dns);
 
 #ifndef WIN32
         auto f = [&](auto...) {
@@ -524,10 +528,10 @@ int main()
         sterm.add();
 #endif // _WIN32
 
-        //p1.connect("threadtux", 61613, std::chrono::seconds(20));
+        p1.connect("threadtux", 61613, std::chrono::seconds(20));
         //p2.connect_localhost(std::chrono::seconds(20));
         //p3.connect("threadtux", 61613, std::chrono::seconds(20));
-        p4.connect("threadtux", 61613, std::chrono::seconds(20));
+        //p4.connect("threadtux", 61613, std::chrono::seconds(20));
 
         queue.dispatch();
     }
