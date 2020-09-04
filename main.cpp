@@ -50,7 +50,7 @@ inline std::ostream& cout()
 }
 
 template <class F>
-inline std::ostream& cout(F fn)
+std::ostream& cout(F fn)
 {
     auto text = fn();
     return std::endl(output(std::cout)
@@ -58,7 +58,7 @@ inline std::ostream& cout(F fn)
 }
 
 template <class F>
-inline std::ostream& cerr(F fn)
+std::ostream& cerr(F fn)
 {
     auto text = fn();
     return std::endl(output(std::cerr)
@@ -100,7 +100,6 @@ class peer1
     btpro::dns_ref dns_;
     std::string host_{};
     int port_{};
-    std::size_t count_{};
     std::size_t trasaction_id_{};
 
     connection conn_{ queue_,
@@ -143,7 +142,7 @@ public:
 
     void on_connect()
     {
-        stompconn::logon logon("two", "max", "maxtwo");
+        stompconn::logon logon("two"sv, "max"sv, "maxtwo"sv);
         //logon.push(stomptalk::header::receipt("123"));
         conn_.send(std::move(logon),
             std::bind(&peer1::on_logon, this, std::placeholders::_1));
@@ -206,10 +205,10 @@ public:
 // тест подключения подписки и отписки
 class peer2
 {
-    typedef stompconn::connection connection_type;
+    using connection = stompconn::connection;
     btpro::queue_ref queue_;
 
-    connection_type conn_{ queue_,
+    connection conn_{ queue_,
         std::bind(&peer2::on_event, this, std::placeholders::_1),
         std::bind(&peer2::on_connect, this)
     };
@@ -256,7 +255,7 @@ public:
                 if (msg)
                 {
                     // получаем идентификатор подписки
-                    auto sub_id = msg.get(stomptalk::header::subscription());
+                    auto sub_id = msg.get(stomptalk::header::tag::subscription());
 
                     // отписываемся
                     conn_.unsubscribe(sub_id, [&](stompconn::packet unsubs){
@@ -292,14 +291,14 @@ public:
 
 class peer3
 {
-    typedef stompconn::connection connection_type;
+    using connection = stompconn::connection;
 
     btpro::queue_ref queue_;
     btpro::dns_ref dns_;
     std::string host_{};
     int port_{};
 
-    connection_type conn_{ queue_,
+    connection conn_{ queue_,
         std::bind(&peer3::on_event, this, std::placeholders::_1),
         std::bind(&peer3::on_connect, this)
     };
@@ -380,7 +379,7 @@ public:
                     });
             });
 
-            subs.push(stomptalk::header::ask_client_individual());
+            subs.push(stomptalk::header::ack_client_individual());
             conn_.send(std::move(subs), [&](stompconn::packet p){
                 if (!p)
                 {
@@ -399,14 +398,14 @@ public:
 
 class peer4
 {
-    typedef stompconn::connection connection_type;
+    using connection = stompconn::connection;
 
     btpro::queue_ref queue_;
     btpro::dns_ref dns_;
     std::string host_{};
     int port_{};
 
-    connection_type conn_{ queue_,
+    connection conn_{ queue_,
         std::bind(&peer4::on_event, this, std::placeholders::_1),
         std::bind(&peer4::on_connect, this)
     };
@@ -416,7 +415,7 @@ public:
         : queue_(queue)
         , dns_(dns)
     {
-        conn_.on_error([&](stompconn::packet p) {
+        conn_.on_error([&](stompconn::packet) {
             //cout() << p.get(stomptalk::header::message()) << std::endl;
             //cout() << p.payload().str() << std::endl;
             //cout() << p.dump() << endl2;
@@ -515,7 +514,7 @@ int main()
         sterm.add();
 #endif // _WIN32
 
-        p1.connect("localhost", 61613, std::chrono::seconds(20));
+        p1.connect("threadtux", 61613, std::chrono::seconds(20));
         //p2.connect_localhost(std::chrono::seconds(20));
         //p3.connect("threadtux", 61613, std::chrono::seconds(20));
         //p4.connect("threadtux", 61613, std::chrono::seconds(20));
