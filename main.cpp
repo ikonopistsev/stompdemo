@@ -19,9 +19,10 @@
 #include <signal.h>
 #endif // _WIN32
 
+using namespace std::literals;
 
 template <std::size_t N>
-constexpr auto mkview(const char (&text)[N]) noexcept
+constexpr auto sv(const char (&text)[N]) noexcept
 {
     return std::string_view(text, N - 1);
 }
@@ -66,14 +67,21 @@ inline std::ostream& cerr(F fn)
 
 btpro::queue create_queue()
 {
-    cout() << mkview("libevent-")
-           << btpro::queue::version()
-           << mkview(" - ");
-
     btpro::config conf;
-    for (auto& i : conf.supported_methods())
-        std::cout << i << ' ';
-    std::endl(std::cout);
+
+    cout([&]{
+        std::string text(64, '\0');
+        text = "libevent-"sv;
+        text += btpro::queue::version();
+        text += " -"sv;
+        for (auto& i : conf.supported_methods())
+        {
+            if (!text.empty())
+                text += ' ';
+            text += i;
+        }
+        return  text;
+    });
 
 #ifndef _WIN32
     conf.require_features(EV_FEATURE_ET|EV_FEATURE_O1);
@@ -86,15 +94,16 @@ btpro::queue create_queue()
 
 class peer1
 {
-    typedef stompconn::connection connection_type;
+    using connection = stompconn::connection;
 
     btpro::queue_ref queue_;
     btpro::dns_ref dns_;
     std::string host_{};
     int port_{};
     std::size_t count_{};
+    std::size_t trasaction_id_{};
 
-    connection_type conn_{ queue_,
+    connection conn_{ queue_,
         std::bind(&peer1::on_event, this, std::placeholders::_1),
         std::bind(&peer1::on_connect, this)
     };
@@ -111,7 +120,7 @@ public:
     {
         cout([&]{
             std::string text;
-            text += mkview("connect to: ");
+            text += "connect to: "sv;
             text += host;
             if (port)
                 text += ' ' + std::to_string(port);
@@ -120,8 +129,6 @@ public:
 
         host_ = host;
         port_ = port;
-
-
 
         conn_.connect(dns_, host, port, timeout);
     }
@@ -142,75 +149,57 @@ public:
             std::bind(&peer1::on_logon, this, std::placeholders::_1));
     }
 
+    void disconnect(const stompconn::packet& packet)
+    {
+        cerr() << packet.dump() << std::endl;
+        on_event(BEV_EVENT_EOF);
+    }
+
     void on_logon(stompconn::packet logon)
     {
-        cout() << logon.dump() << endl2;
-
-        if (logon)
-        {
-            stompconn::subscribe subs("/queue/mt4_trades",
-                [&](stompconn::packet p) {
-
-                    //cout() << p.dump() << endl2;
-
-                    if (p)
-                    {
-                        stompconn::send send("/queue/mt4_trades");
-                        send.payload(btpro::buffer(btdef::date::to_log_time()));
-                        conn_.send(std::move(send), [&](stompconn::packet s){
-                            if (s)
-                            {
-                                //cout() << s.dump() << endl2;
-                                if (++count_ == 100000)
-                                    exit(0);
-                            }
-                            else
-                            {
-                                cerr() << s.dump() << std::endl;
-                                on_event(BEV_EVENT_EOF);
-                            }
-                        });
-                    }
-                    else
-                    {
-                        cerr() << p.dump() << std::endl;
-                        on_event(BEV_EVENT_EOF);
-                    }
-            });
-
-            conn_.send(std::move(subs), [&](stompconn::packet p){
-                if (p)
-                {
-                    //cout() << p.dump() << endl2;
-
-                    stompconn::send send("/queue/mt4_trades");
-                    send.payload(btpro::buffer(btdef::date::to_log_time()));
-                    conn_.send(std::move(send), [&](stompconn::packet s){
-                        if (s)
-                        {
-                            //cout() << s.dump() << endl2;
-                            if (++count_ == 100000)
-                                exit(0);
-                        }
-                        else
-                        {
-                            cerr() << s.dump() << std::endl;
-                            on_event(BEV_EVENT_EOF);
-                        }
-                    });
-                }
-                else
-                {
-                    cerr() << p.dump() << std::endl;
-                    on_event(BEV_EVENT_EOF);
-                }
-            });
+        if (!logon) {
+            disconnect(logon); return;
         }
-        else
-        {
-            cerr() << logon.dump() << std::endl;
-            on_event(BEV_EVENT_EOF);
-        }
+
+        auto commit_transaction = [&](...){
+            stompconn::commit frame(std::to_string(trasaction_id_));
+            conn_.send(std::move(frame),
+                std::bind(&peer1::on_logon, this, std::placeholders::_1));
+        };
+
+        auto second_send = [&, commit_transaction](...){
+            stompconn::send frame("/queue/transaction_demo");
+            frame.push(stomptalk::header::transaction(
+                std::to_string(trasaction_id_)));
+            frame.push(stomptalk::header::content_type_text_plain());
+            frame.payload(btpro::buffer(conn_.create_message_id()));
+            conn_.send(std::move(frame));
+            queue_.once(std::chrono::seconds(30), commit_transaction);
+        };
+
+        auto first_send = [&, second_send](...){
+            stompconn::send frame("/queue/transaction_demo");
+            frame.push(stomptalk::header::transaction(
+                std::to_string(trasaction_id_)));
+            frame.push(stomptalk::header::content_type_text_plain());
+            frame.payload(btpro::buffer(conn_.create_message_id()));
+            conn_.send(std::move(frame));
+            queue_.once(std::chrono::seconds(2), second_send);
+        };
+
+        auto begin_receipt = [=](auto packet) {
+            if (!packet) {
+                disconnect(packet); return;
+            }
+            queue_.once(std::chrono::seconds(2), first_send);
+        };
+
+        auto begin_transaction = [&, begin_receipt](...){
+            stompconn::begin frame(std::to_string(++trasaction_id_));
+            conn_.send(std::move(frame), begin_receipt);
+        };
+
+        queue_.once(std::chrono::seconds(2), begin_transaction);
     }
 };
 
@@ -254,8 +243,6 @@ public:
 
     void on_logon(stompconn::packet logon)
     {
-        cout() << logon.dump() << endl2;
-
         // проверяем была ли ошибка
         if (logon)
         {
@@ -329,7 +316,7 @@ public:
     {
         cout([&]{
             std::string text;
-            text += mkview("connect to: ");
+            text += "connect to: "sv;
             text += host;
             if (port)
                 text += ' ' + std::to_string(port);
@@ -442,7 +429,7 @@ public:
     {
         cout([&]{
             std::string text;
-            text += mkview("connect to: ");
+            text += "connect to: "sv;
             text += host;
             if (port)
                 text += ' ' + std::to_string(port);
@@ -506,15 +493,15 @@ int main()
 
         // эхо
         peer1 p1(queue, dns);
-        // отписка
-        // peer2 p2(queue);
+        // запись транзакций
+        //peer2 p2(queue);
         // маршруты
         //peer3 p3(queue, dns);
         //peer4 p4(queue, dns);
 
 #ifndef WIN32
         auto f = [&](auto...) {
-            cerr() << mkview("stop!") << std::endl;
+            cerr() << "stop!"sv << std::endl;
             queue.loop_break();
             return 0;
         };
@@ -528,7 +515,7 @@ int main()
         sterm.add();
 #endif // _WIN32
 
-        p1.connect("threadtux", 61613, std::chrono::seconds(20));
+        p1.connect("localhost", 61613, std::chrono::seconds(20));
         //p2.connect_localhost(std::chrono::seconds(20));
         //p3.connect("threadtux", 61613, std::chrono::seconds(20));
         //p4.connect("threadtux", 61613, std::chrono::seconds(20));
