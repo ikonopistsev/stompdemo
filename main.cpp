@@ -4,11 +4,12 @@
 #include "btdef/date.hpp"
 #include "btpro/tcp/bevfn.hpp"
 #include "btpro/sock_addr.hpp"
-#include "btdef/ref.hpp"
 #include "stomptalk/parser.hpp"
 #include "stomptalk/parser_hook.hpp"
 #include "stomptalk/antoull.hpp"
 #include "stompconn/connection.hpp"
+#include "stompconn/version.hpp"
+#include "stomptalk/version.hpp"
 
 #include <iostream>
 #include <list>
@@ -80,6 +81,10 @@ btpro::queue create_queue()
                 text += ' ';
             text += i;
         }
+        text += " stompconn: v"sv;
+        text += stompconn::version();
+        text += " stomptalk: v"sv;
+        text += stomptalk::version();
         return  text;
     });
 
