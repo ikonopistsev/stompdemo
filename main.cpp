@@ -70,6 +70,8 @@ btpro::queue create_queue()
 {
     btpro::config conf;
 
+    cout() << "stompconn: v"sv << stompconn::version() << std::endl;
+    cout() << "stomptalk: v"sv << stomptalk::version() << std::endl;
     cout([&]{
         std::string text(64, '\0');
         text = "libevent-"sv;
@@ -81,10 +83,6 @@ btpro::queue create_queue()
                 text += ' ';
             text += i;
         }
-        text += " stompconn: v"sv;
-        text += stompconn::version();
-        text += " stomptalk: v"sv;
-        text += stomptalk::version();
         return  text;
     });
 
@@ -354,7 +352,7 @@ public:
         {
             cout() << logon.session() << std::endl;
 
-            stompconn::subscribe subs("/queue/mt4_trades",
+            stompconn::subscribe subs("/queue/transaction_demo",
                 [&](stompconn::packet p) {
                     auto content = p.payload().str();
 
@@ -368,7 +366,7 @@ public:
 
                     if (p.must_ack())
                     {
-                        conn_.nack(p, [&](stompconn::packet a){
+                        conn_.ack(p, [&](stompconn::packet a){
                             if (!a)
                             {
                                 cout() << p.dump() << endl2;
@@ -379,9 +377,9 @@ public:
 
                     // отправка сообщения о желании отключиться
                     // сервер после него отключает
-                    conn_.logout([&](stompconn::packet l) {
-                        cout() << l.dump() << endl2;
-                    });
+//                    conn_.logout([&](stompconn::packet l) {
+//                        cout() << l.dump() << endl2;
+//                    });
             });
 
             subs.push(stomptalk::header::ack_client_individual());
@@ -500,7 +498,7 @@ int main()
         // запись транзакций
         //peer2 p2(queue);
         // маршруты
-        //peer3 p3(queue, dns);
+        peer3 p3(queue, dns);
         //peer4 p4(queue, dns);
 
 #ifndef WIN32
@@ -521,7 +519,7 @@ int main()
 
         p1.connect("threadtux", 61613, std::chrono::seconds(20));
         //p2.connect_localhost(std::chrono::seconds(20));
-        //p3.connect("threadtux", 61613, std::chrono::seconds(20));
+        p3.connect("threadtux", 61613, std::chrono::seconds(20));
         //p4.connect("threadtux", 61613, std::chrono::seconds(20));
 
         queue.dispatch();
