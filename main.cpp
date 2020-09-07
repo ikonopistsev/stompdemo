@@ -165,14 +165,15 @@ public:
 
         auto commit_transaction = [&](...){
             stompconn::commit frame(std::to_string(trasaction_id_));
+            frame.push(stomptalk::header::time_since_epoch());
             conn_.send(std::move(frame),
                 std::bind(&peer1::on_logon, this, std::placeholders::_1));
         };
 
         auto second_send = [&, commit_transaction](...){
             stompconn::send frame("/queue/transaction_demo");
-            frame.push(stomptalk::header::transaction(
-                std::to_string(trasaction_id_)));
+            frame.push(stomptalk::header::time_since_epoch());
+            frame.push(stomptalk::header::transaction(trasaction_id_));
             frame.push(stomptalk::header::content_type_text_plain());
             frame.payload(btpro::buffer(conn_.create_message_id()));
             conn_.send(std::move(frame));
@@ -181,8 +182,8 @@ public:
 
         auto first_send = [&, second_send](...){
             stompconn::send frame("/queue/transaction_demo");
-            frame.push(stomptalk::header::transaction(
-                std::to_string(trasaction_id_)));
+            frame.push(stomptalk::header::time_since_epoch());
+            frame.push(stomptalk::header::transaction(trasaction_id_));
             frame.push(stomptalk::header::content_type_text_plain());
             frame.payload(btpro::buffer(conn_.create_message_id()));
             conn_.send(std::move(frame));
@@ -197,7 +198,9 @@ public:
         };
 
         auto begin_transaction = [&, begin_receipt](...){
-            stompconn::begin frame(std::to_string(++trasaction_id_));
+            stompconn::begin frame(++trasaction_id_);
+            frame.push(stomptalk::header::time_since_epoch());
+            frame.push(stomptalk::header::expires(std::chrono::seconds(20)));
             conn_.send(std::move(frame), begin_receipt);
         };
 
@@ -455,7 +458,6 @@ public:
 
     void on_connect()
     {
-        ;
         conn_.send(stompconn::logon("two", "max", "maxtwo"),
             std::bind(&peer4::on_logon, this, std::placeholders::_1));
     }
