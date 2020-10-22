@@ -377,7 +377,7 @@ public:
                             auto msg_id = conn_.create_message_id();
                             auto amqp_message_id = stomptalk::sv(msg_id);
 
-                            stompconn::send frame(write_);
+                            stompconn::send frame(reply);
                             frame.push(stomptalk::header::reply_to(read_));
                             frame.push(stomptalk::header::time_since_epoch());
                             frame.push(stomptalk::header::amqp_message_id(amqp_message_id));
