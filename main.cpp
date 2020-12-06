@@ -366,7 +366,7 @@ public:
             cout() << logon.session() << std::endl;
 
             // формируем подписку
-            stompconn::subscribe frame(read_, [this](stompconn::packet msg){
+            stompconn::subscribe subs(read_, [this](stompconn::packet msg){
                 if (msg)
                 {
                     if (++msg_count_ < 100000)
@@ -408,7 +408,7 @@ public:
             });
 
             // оформляем подписку
-            conn_.send(std::move(frame), [this](stompconn::packet receipt){
+            conn_.send(std::move(subs), [this](stompconn::packet receipt){
                 if (receipt)
                 {
                     // если мы первые формируем первое сообщение
@@ -425,6 +425,8 @@ public:
 //                        std::string text;
 //                        text.resize(20480, 'x');
                         frame.payload(btpro::buffer(conn_.session()));
+
+                        cout() << "SEND "sv << conn_.session() << std::endl;
 
                         conn_.send(std::move(frame),[&](stompconn::packet send_receipt){
                             if (!send_receipt)
@@ -574,8 +576,11 @@ int main()
         //p3.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
         //p4.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
 
-        rpc1.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
-        rpc2.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
+
+//        rpc1.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
+//        rpc2.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
+        rpc1.connect("localhost", 14889, std::chrono::seconds(20));
+        rpc2.connect("localhost", 14889, std::chrono::seconds(20));
 
         queue.dispatch();
     }
