@@ -81,7 +81,7 @@ btpro::queue create_queue()
     });
 
 #ifndef _WIN32
-    conf.require_features(EV_FEATURE_ET|EV_FEATURE_O1);
+    //conf.require_features(EV_FEATURE_ET|EV_FEATURE_O1);
 #endif //
     btpro::queue q;
 
@@ -355,6 +355,9 @@ public:
 
     void on_connect()
     {
+            // artemis
+//        conn_.send(stompconn::logon("/", "admin", "123"),
+//            std::bind(&rpc::on_logon, this, std::placeholders::_1));
         conn_.send(stompconn::logon("stompdemo", "stompdemo", "123"),
             std::bind(&rpc::on_logon, this, std::placeholders::_1));
     }
@@ -422,9 +425,16 @@ public:
                         frame.push(stomptalk::header::time_since_epoch());
                         frame.push(stomptalk::header::amqp_message_id(amqp_message_id));
 
+                        btpro::buffer data(conn_.session());
 //                        std::string text;
-//                        text.resize(20480, 'x');
-                        frame.payload(btpro::buffer(conn_.session()));
+//                        text.resize(1024, 'x');
+//                        text.resize(1024*2, 'x');
+//                        text.resize(1024*4, 'x');
+//                       text.resize(1024*8, 'x');
+//                        text.resize(1024*14, 'x');
+//                        text.resize(1024*16, 'x');
+//                        data.append(text);
+                        frame.payload(std::move(data));
 
                         cout() << "SEND "sv << conn_.session() << std::endl;
 
@@ -579,8 +589,10 @@ int main()
 
 //        rpc1.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
 //        rpc2.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
-        rpc1.connect("localhost", 14889, std::chrono::seconds(20));
-        rpc2.connect("localhost", 14889, std::chrono::seconds(20));
+//        rpc1.connect("localhost", 14889, std::chrono::seconds(20));
+//        rpc2.connect("localhost", 14889, std::chrono::seconds(20));
+        rpc1.connect("localhost", 61613, std::chrono::seconds(20));
+        rpc2.connect("localhost", 61613, std::chrono::seconds(20));
 
         queue.dispatch();
     }
