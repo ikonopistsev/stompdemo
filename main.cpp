@@ -358,7 +358,9 @@ public:
             // artemis
 //        conn_.send(stompconn::logon("/", "admin", "123"),
 //            std::bind(&rpc::on_logon, this, std::placeholders::_1));
-        conn_.send(stompconn::logon("stompdemo", "stompdemo", "123"),
+        stompconn::logon logon("stompdemo", "stompdemo", "123");
+        logon.push(stomptalk::header::heart_beat(1000, 1000));
+        conn_.send(std::move(logon),
             std::bind(&rpc::on_logon, this, std::placeholders::_1));
     }
 
@@ -366,7 +368,7 @@ public:
     {
         if (logon)
         {
-            cout() << logon.session() << std::endl;
+            conn_.setup_heart_beat(logon);
 
             // формируем подписку
             stompconn::subscribe subs(read_, [this](stompconn::packet msg){
@@ -400,7 +402,7 @@ public:
                     }
                     else
                     {
-                        exit(0);
+                        //exit(0);
                     }
                 }
                 else
@@ -518,7 +520,9 @@ public:
 
     void on_connect()
     {
-        conn_.send(stompconn::logon("stompdemo", "stompdemo", "123"),
+        stompconn::logon logon("stompdemo", "stompdemo", "123");
+        logon.push(stomptalk::header::heart_beat(20, 20));
+        conn_.send(std::move(logon),
             std::bind(&peer4::on_logon, this, std::placeholders::_1));
     }
 
@@ -526,6 +530,8 @@ public:
     {
         if (logon)
         {
+            conn_.setup_heart_beat(logon);
+
             cout() << logon.session() << std::endl;
 
             {
