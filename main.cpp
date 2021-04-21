@@ -368,8 +368,6 @@ public:
     {
         if (logon)
         {
-            conn_.setup_heart_beat(logon);
-
             // формируем подписку
             stompconn::subscribe subs(read_, [this](stompconn::packet msg){
                 if (msg)
@@ -521,7 +519,7 @@ public:
     void on_connect()
     {
         stompconn::logon logon("stompdemo", "stompdemo", "123");
-        logon.push(stomptalk::header::heart_beat(20, 20));
+        logon.push(stomptalk::header::heart_beat(2000, 2000));
         conn_.send(std::move(logon),
             std::bind(&peer4::on_logon, this, std::placeholders::_1));
     }
@@ -530,8 +528,6 @@ public:
     {
         if (logon)
         {
-            conn_.setup_heart_beat(logon);
-
             cout() << logon.session() << std::endl;
 
             {
