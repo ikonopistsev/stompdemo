@@ -348,9 +348,9 @@ public:
     {
         cout() << "disconnect: " << ef << std::endl;
         // любое событие приводик к закрытию сокета
-//        queue_.once(std::chrono::seconds(5), [&](...){
-//            connect(host_, port_, std::chrono::seconds(20));
-//        });
+        queue_.once(std::chrono::seconds(5), [&](...){
+            connect(host_, port_, std::chrono::seconds(20));
+        });
     }
 
     void on_connect()
@@ -400,7 +400,9 @@ public:
                     }
                     else
                     {
-                        //exit(0);
+#ifdef NDEBUG
+                        queue_.loop_break();
+#endif
                     }
                 }
                 else
