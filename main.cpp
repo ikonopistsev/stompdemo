@@ -591,8 +591,8 @@ int main()
 //        rpc2.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
 //        rpc1.connect("localhost", 14889, std::chrono::seconds(20));
 //        rpc2.connect("localhost", 14889, std::chrono::seconds(20));
-        rpc1.connect("localhost", 61613, std::chrono::seconds(20));
-        rpc2.connect("localhost", 61613, std::chrono::seconds(20));
+        rpc1.connect("127.0.0.1", 61613, std::chrono::seconds(20));
+        rpc2.connect("127.0.0.1", 61613, std::chrono::seconds(20));
 
         queue.dispatch();
     }
