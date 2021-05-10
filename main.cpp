@@ -348,9 +348,9 @@ public:
     {
         cout() << "disconnect: " << ef << std::endl;
         // любое событие приводик к закрытию сокета
-//        queue_.once(std::chrono::seconds(5), [&](...){
-//            connect(host_, port_, std::chrono::seconds(20));
-//        });
+        queue_.once(std::chrono::seconds(5), [&](...){
+            connect(host_, port_, std::chrono::seconds(20));
+        });
     }
 
     void on_connect()
@@ -358,16 +358,51 @@ public:
             // artemis
 //        conn_.send(stompconn::logon("/", "admin", "123"),
 //            std::bind(&rpc::on_logon, this, std::placeholders::_1));
-        conn_.send(stompconn::logon("stompdemo", "stompdemo", "123"),
+        stompconn::logon logon("stompdemo", "stompdemo", "123");
+        logon.push(stomptalk::header::heart_beat(1000, 1000));
+        conn_.send(std::move(logon),
             std::bind(&rpc::on_logon, this, std::placeholders::_1));
+    }
+
+    void send_frame()
+    {
+        auto msg_id = conn_.create_message_id();
+        auto amqp_message_id = stomptalk::sv(msg_id);
+
+        stompconn::send frame(write_);
+        frame.push(stomptalk::header::reply_to(read_));
+        frame.push(stomptalk::header::time_since_epoch(queue_.gettimeofday_cached()));
+        frame.push(stomptalk::header::amqp_message_id(amqp_message_id));
+
+        std::string text = conn_.session();
+        text += '-';
+        text += amqp_message_id;
+        btpro::buffer data(text);
+//                        std::string text;
+//                        text.resize(1024, 'x');
+//                        text.resize(1024*2, 'x');
+//                        text.resize(1024*4, 'x');
+//                       text.resize(1024*8, 'x');
+//                        text.resize(1024*14, 'x');
+//                        text.resize(1024*16, 'x');
+//                        data.append(text);
+        frame.payload(std::move(data));
+
+        cout() << "SEND "sv << text << std::endl;
+
+        conn_.send(std::move(frame),[&](stompconn::packet send_receipt){
+            if (!send_receipt)
+            {
+                cout() << send_receipt.dump() << endl2;
+                on_event(BEV_EVENT_EOF);
+            }
+        });
     }
 
     void on_logon(stompconn::packet logon)
     {
         if (logon)
         {
-            cout() << logon.session() << std::endl;
-
             // формируем подписку
             stompconn::subscribe subs(read_, [this](stompconn::packet msg){
                 if (msg)
@@ -382,7 +417,8 @@ public:
 
                             stompconn::send frame(reply);
                             frame.push(stomptalk::header::reply_to(read_));
-                            frame.push(stomptalk::header::time_since_epoch());
+                            frame.push(stomptalk::header::time_since_epoch(
+                                queue_.gettimeofday_cached()));
                             frame.push(stomptalk::header::amqp_message_id(amqp_message_id));
 
                             btpro::buffer buf;
@@ -400,7 +436,9 @@ public:
                     }
                     else
                     {
-                        exit(0);
+#ifdef NDEBUG
+                        queue_.loop_break();
+#endif
                     }
                 }
                 else
@@ -415,36 +453,10 @@ public:
                 if (receipt)
                 {
                     // если мы первые формируем первое сообщение
-                    if (!rpc_client_num++)
+                    if (read_ == "a1")
                     {
-                        auto msg_id = conn_.create_message_id();
-                        auto amqp_message_id = stomptalk::sv(msg_id);
-
-                        stompconn::send frame(write_);
-                        frame.push(stomptalk::header::reply_to(read_));
-                        frame.push(stomptalk::header::time_since_epoch());
-                        frame.push(stomptalk::header::amqp_message_id(amqp_message_id));
-
-                        btpro::buffer data(conn_.session());
-//                        std::string text;
-//                        text.resize(1024, 'x');
-//                        text.resize(1024*2, 'x');
-//                        text.resize(1024*4, 'x');
-//                       text.resize(1024*8, 'x');
-//                        text.resize(1024*14, 'x');
-//                        text.resize(1024*16, 'x');
-//                        data.append(text);
-                        frame.payload(std::move(data));
-
-                        cout() << "SEND "sv << conn_.session() << std::endl;
-
-                        conn_.send(std::move(frame),[&](stompconn::packet send_receipt){
-                            if (!send_receipt)
-                            {
-                                cout() << send_receipt.dump() << endl2;
-                                on_event(BEV_EVENT_EOF);
-                            }
-                        });
+                        for (std::size_t i = 0; i < 5; ++i)
+                            send_frame();
                     }
                 }
                 else
@@ -518,7 +530,9 @@ public:
 
     void on_connect()
     {
-        conn_.send(stompconn::logon("stompdemo", "stompdemo", "123"),
+        stompconn::logon logon("stompdemo", "stompdemo", "123");
+        logon.push(stomptalk::header::heart_beat(2000, 2000));
+        conn_.send(std::move(logon),
             std::bind(&peer4::on_logon, this, std::placeholders::_1));
     }
 
@@ -563,7 +577,7 @@ int main()
         //peer3 p3(queue, dns);
         rpc rpc1(queue, dns, "a1", "a2");
         rpc rpc2(queue, dns, "a2", "a1");
-        peer4 p4(queue, dns);
+        //peer4 p4(queue, dns);
 
 #ifndef WIN32
         auto f = [&](auto...) {
