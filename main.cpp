@@ -255,7 +255,7 @@ public:
                 if (msg)
                 {
                     // получаем идентификатор подписки
-                    auto sub_id = msg.get(stomptalk::header::tag::subscription());
+                    auto sub_id = msg.get_subscription();
 
                     // отписываемся
                     conn_.unsubscribe(sub_id, [&](stompconn::packet unsubs){
@@ -359,7 +359,7 @@ public:
 //        conn_.send(stompconn::logon("/", "admin", "123"),
 //            std::bind(&rpc::on_logon, this, std::placeholders::_1));
         stompconn::logon logon("stompdemo", "stompdemo", "123");
-        logon.push(stomptalk::header::heart_beat(1000, 1000));
+        //logon.push(stomptalk::header::heart_beat(1000, 1000));
         conn_.send(std::move(logon),
             std::bind(&rpc::on_logon, this, std::placeholders::_1));
     }
@@ -407,9 +407,9 @@ public:
             stompconn::subscribe subs(read_, [this](stompconn::packet msg){
                 if (msg)
                 {
-                    if (++msg_count_ < 100000)
+                    if (++msg_count_ < 1000000)
                     {
-                        auto reply = msg.get(stomptalk::header::tag::reply_to());
+                        auto reply = msg.get_reply_to();
                         if (!reply.empty())
                         {
                             auto msg_id = conn_.create_message_id();
