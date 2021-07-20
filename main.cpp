@@ -93,8 +93,8 @@ class peer1
 {
     using connection = stompconn::connection;
 
-    btpro::queue_ref queue_;
-    btpro::dns_ref dns_;
+    btpro::queue& queue_;
+    btpro::dns& dns_;
     std::string host_{};
     int port_{};
     std::size_t trasaction_id_{};
@@ -105,7 +105,7 @@ class peer1
     };
 
 public:
-    peer1(btpro::queue_ref queue, btpro::dns_ref dns)
+    peer1(btpro::queue& queue, btpro::dns& dns)
         : queue_(queue)
         , dns_(dns)
     {   }
@@ -206,7 +206,7 @@ public:
 class peer2
 {
     using connection = stompconn::connection;
-    btpro::queue_ref queue_;
+    btpro::queue& queue_;
 
     connection conn_{ queue_,
         std::bind(&peer2::on_event, this, std::placeholders::_1),
@@ -214,7 +214,7 @@ class peer2
     };
 
 public:
-    explicit peer2(btpro::queue_ref queue)
+    explicit peer2(btpro::queue& queue)
         : queue_(queue)
     {   }
 
@@ -295,8 +295,8 @@ class rpc
 {
     using connection = stompconn::connection;
 
-    btpro::queue_ref queue_;
-    btpro::dns_ref dns_;
+    btpro::queue& queue_;
+    btpro::dns& dns_;
     std::string host_{};
     int port_{};
 
@@ -311,7 +311,7 @@ class rpc
     };
 
 public:
-    rpc(btpro::queue_ref queue, btpro::dns_ref dns,
+    rpc(btpro::queue& queue, btpro::dns& dns,
         std::string read, std::string write)
         : queue_(queue)
         , dns_(dns)
@@ -478,8 +478,8 @@ class peer4
 {
     using connection = stompconn::connection;
 
-    btpro::queue_ref queue_;
-    btpro::dns_ref dns_;
+    btpro::queue& queue_;
+    btpro::dns& dns_;
     std::string host_{};
     int port_{};
 
@@ -489,7 +489,7 @@ class peer4
     };
 
 public:
-    peer4(btpro::queue_ref queue, btpro::dns_ref dns)
+    peer4(btpro::queue& queue, btpro::dns& dns)
         : queue_(queue)
         , dns_(dns)
     {
