@@ -1,3 +1,6 @@
+#include "main.hpp"
+#include "unsubscribe_all.hpp"
+#include "btdef/date.hpp"
 #include "btpro/evcore.hpp"
 #include "btpro/evstack.hpp"
 #include "btpro/uri.hpp"
@@ -11,7 +14,6 @@
 #include "stompconn/version.hpp"
 #include "stomptalk/version.hpp"
 
-#include <iostream>
 #include <list>
 #include <string_view>
 #include <functional>
@@ -29,36 +31,21 @@ std::ostream& output(std::ostream& os)
     return os;
 }
 
-inline std::ostream& endl2(std::ostream& os)
+std::ostream& endl2(std::ostream& os)
 {
     return os << std::endl << std::endl;
 }
 
-inline std::ostream& cerr()
+std::ostream& cerr()
 {
     return output(std::cerr);
 }
 
-inline std::ostream& cout()
+std::ostream& cout()
 {
     return output(std::cout);
 }
 
-template <class F>
-std::ostream& cout(F fn)
-{
-    auto text = fn();
-    return std::endl(output(std::cout)
-        .write(text.data(), static_cast<std::streamsize>(text.size())));
-}
-
-template <class F>
-std::ostream& cerr(F fn)
-{
-    auto text = fn();
-    return std::endl(output(std::cerr)
-        .write(text.data(), static_cast<std::streamsize>(text.size())));
-}
 
 btpro::queue create_queue()
 {
@@ -198,99 +185,6 @@ public:
         };
 
         queue_.once(std::chrono::seconds(2), begin_transaction);
-    }
-};
-
-// тест подключения подписки и отписки
-class peer2
-{
-    using connection = stompconn::connection;
-    btpro::queue& queue_;
-
-    connection conn_{ queue_,
-        std::bind(&peer2::on_event, this, std::placeholders::_1),
-        std::bind(&peer2::on_connect, this)
-    };
-
-public:
-    explicit peer2(btpro::queue& queue)
-        : queue_(queue)
-    {   }
-
-    template<class Rep, class Period>
-    void connect_localhost(std::chrono::duration<Rep, Period> timeout)
-    {
-        conn_.connect(btpro::ipv4::loopback(61613), timeout);
-    }
-
-    void on_event(short ef)
-    {
-        cout() << "disconnect: " << ef << std::endl;
-        return;
-        // любое событие приводик к закрытию сокета
-        queue_.once(std::chrono::seconds(5), [&](...){
-            connect_localhost(std::chrono::seconds(20));
-        });
-    }
-
-    void on_connect()
-    {
-        stompconn::logon logon("stompdemo", "stompdemo", "123");
-        conn_.send(std::move(logon),
-            std::bind(&peer2::on_logon, this, std::placeholders::_1));
-    }
-
-    void create_subscription()
-    {
-        // очередь работает только на прием
-        conn_.send(stompconn::subscribe("/queue/a1", [&](auto msg){
-            cout() << msg.dump() << std::endl;
-        }), [&](auto subs) {
-            cout() << subs.dump() << endl2;
-        });
-
-        // очередь работает только на прием
-        conn_.send(stompconn::subscribe("/queue/a2", [&](auto msg){
-            cout() << msg.dump() << std::endl;
-        }), [&](auto subs) {
-            cout() << subs.dump() << endl2;
-        });
-
-        stompconn::subscribe a3("/queue/a3", [&](auto msg) {
-            cout() << msg.dump() << std::endl;
-            // любое принятое сообщенеи при водит к отписке от этой очереди
-            auto sub_id = msg.get_subscription();
-            // отписываемся
-            conn_.unsubscribe(sub_id, [&](auto unsubs){
-                cout() << unsubs.dump() << std::endl;
-
-                // отписка от очереди a3 приводит к отписке
-                // от остальных очередей и отправки disconnect
-                conn_.unsubscribe_logout([&]{
-                    cout() << "unsubscribe_logout" << std::endl;
-                    //queue_.loop_break();
-                });
-            });
-        });
-
-        // подписываемся
-        conn_.send(std::move(a3), [&](stompconn::packet msg){
-            cout() << msg.dump() << endl2;
-        });
-
-    }
-
-    void on_logon(stompconn::packet logon)
-    {
-        // проверяем была ли ошибка
-        if (logon)
-            create_subscription();
-        else
-        {
-            conn_.disconnect([]{
-                cout() << "disconnect" << std::endl;
-            });
-        }
     }
 };
 
@@ -582,7 +476,7 @@ int main()
         // эхо
         //peer1 p1(queue, dns);
         // запись транзакций
-        peer2 p2(queue);
+        unsubscribe_all p2(queue);
         // маршруты
         //peer3 p3(queue, dns);
         //rpc rpc1(queue, dns, "a1", "a2");

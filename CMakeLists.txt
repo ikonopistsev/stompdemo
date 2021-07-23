@@ -31,7 +31,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} stomptalk/include)
 
 add_subdirectory(stompconn)
 
-add_executable(stompdemo main.cpp)
+add_executable(stompdemo main.cpp unsubscribe_all.cpp)
 
 target_link_libraries(stompdemo PRIVATE event stomptalk stompconn)
 
