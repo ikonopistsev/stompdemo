@@ -84,7 +84,6 @@ btpro::queue create_queue()
     //conf.require_features(EV_FEATURE_ET|EV_FEATURE_O1);
 #endif //
     btpro::queue q;
-
     q.create(conf);
     return q;
 }
@@ -227,6 +226,7 @@ public:
     void on_event(short ef)
     {
         cout() << "disconnect: " << ef << std::endl;
+        return;
         // любое событие приводик к закрытию сокета
         queue_.once(std::chrono::seconds(5), [&](...){
             connect_localhost(std::chrono::seconds(20));
@@ -235,57 +235,62 @@ public:
 
     void on_connect()
     {
-        stompconn::logon logon("two", "max", "maxtwo");
+        stompconn::logon logon("stompdemo", "stompdemo", "123");
         conn_.send(std::move(logon),
             std::bind(&peer2::on_logon, this, std::placeholders::_1));
+    }
+
+    void create_subscription()
+    {
+        // очередь работает только на прием
+        conn_.send(stompconn::subscribe("/queue/a1", [&](auto msg){
+            cout() << msg.dump() << std::endl;
+        }), [&](auto subs) {
+            cout() << subs.dump() << endl2;
+        });
+
+        // очередь работает только на прием
+        conn_.send(stompconn::subscribe("/queue/a2", [&](auto msg){
+            cout() << msg.dump() << std::endl;
+        }), [&](auto subs) {
+            cout() << subs.dump() << endl2;
+        });
+
+        stompconn::subscribe a3("/queue/a3", [&](auto msg) {
+            cout() << msg.dump() << std::endl;
+            // любое принятое сообщенеи при водит к отписке от этой очереди
+            auto sub_id = msg.get_subscription();
+            // отписываемся
+            conn_.unsubscribe(sub_id, [&](auto unsubs){
+                cout() << unsubs.dump() << std::endl;
+
+                // отписка от очереди a3 приводит к отписке
+                // от остальных очередей и отправки disconnect
+                conn_.unsubscribe_logout([&]{
+                    cout() << "unsubscribe_logout" << std::endl;
+                    //queue_.loop_break();
+                });
+            });
+        });
+
+        // подписываемся
+        conn_.send(std::move(a3), [&](stompconn::packet msg){
+            cout() << msg.dump() << endl2;
+        });
+
     }
 
     void on_logon(stompconn::packet logon)
     {
         // проверяем была ли ошибка
         if (logon)
+            create_subscription();
+        else
         {
-            // если ошибки не было
-            // формируем запрос на подписку
-            stompconn::subscribe subs("/queue/mt4_trades",
-                                      [&](stompconn::packet msg) {
-                // просто выдаем пришедшие по подписке данные
-                cout() << msg.dump() << std::endl;
-
-                if (msg)
-                {
-                    // получаем идентификатор подписки
-                    auto sub_id = msg.get_subscription();
-
-                    // отписываемся
-                    conn_.unsubscribe(sub_id, [&](stompconn::packet unsubs){
-                        // просто выдаем пришедшие по подписке данные
-                        cout() << unsubs.dump() << std::endl;
-
-                        if (!unsubs)
-                            disconnect();
-                    });
-                }
-                else
-                    disconnect();
-            });
-
-            // подписываемся
-            conn_.send(std::move(subs), [&](stompconn::packet subs){
-                // дамп пакета
-                cout() << subs.dump() << endl2;
-
-                if (!subs)
-                    disconnect();
+            conn_.disconnect([]{
+                cout() << "disconnect" << std::endl;
             });
         }
-        else // была ошика - отключаемся
-            disconnect();
-    }
-
-    void disconnect()
-    {
-        on_event(BEV_EVENT_EOF);
     }
 };
 
@@ -304,6 +309,7 @@ class rpc
     std::string write_{};
 
     std::size_t msg_count_{};
+    bool run_{true};
 
     connection conn_{ queue_,
         std::bind(&rpc::on_event, this, std::placeholders::_1),
@@ -315,8 +321,8 @@ public:
         std::string read, std::string write)
         : queue_(queue)
         , dns_(dns)
-        , read_(read)
-        , write_(write)
+        , read_(std::move(read))
+        , write_(std::move(write))
     {
         conn_.on_error([&](stompconn::packet p) {
             //cout() << p.get(stomptalk::header::message()) << std::endl;
@@ -407,7 +413,7 @@ public:
             stompconn::subscribe subs(read_, [this](stompconn::packet msg){
                 if (msg)
                 {
-                    if (++msg_count_ < 1000000)
+                    if (++msg_count_ < 2)
                     {
                         auto reply = msg.get_reply_to();
                         if (!reply.empty())
@@ -436,9 +442,13 @@ public:
                     }
                     else
                     {
-#ifdef NDEBUG
-                        queue_.loop_break();
-#endif
+                        if (run_)
+                        {
+                            run_ = false;
+                            conn_.unsubscribe_logout([&]{
+                                queue_.loop_break();
+                            });
+                        }
                     }
                 }
                 else
@@ -455,7 +465,7 @@ public:
                     // если мы первые формируем первое сообщение
                     if (read_ == "a1")
                     {
-                        for (std::size_t i = 0; i < 5; ++i)
+                        for (std::size_t i = 0; i < 2; ++i)
                             send_frame();
                     }
                 }
@@ -565,18 +575,18 @@ int main()
     {
         // инициализация wsa
         btpro::startup();
-        btpro::dns dns;
+        //btpro::dns dns;
         auto queue = create_queue();
-        dns.create(queue, btpro::dns_initialize_nameservers);
+        //dns.create(queue, btpro::dns_initialize_nameservers);
 
         // эхо
         //peer1 p1(queue, dns);
         // запись транзакций
-        //peer2 p2(queue);
+        peer2 p2(queue);
         // маршруты
         //peer3 p3(queue, dns);
-        rpc rpc1(queue, dns, "a1", "a2");
-        rpc rpc2(queue, dns, "a2", "a1");
+        //rpc rpc1(queue, dns, "a1", "a2");
+        //rpc rpc2(queue, dns, "a2", "a1");
         //peer4 p4(queue, dns);
 
 #ifndef WIN32
@@ -596,7 +606,7 @@ int main()
 #endif // _WIN32
 
         //p1.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
-        //p2.connect_localhost(std::chrono::seconds(20));
+        p2.connect_localhost(std::chrono::seconds(20));
         //p3.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
         //p4.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
 
@@ -605,8 +615,8 @@ int main()
 //        rpc2.connect("bigtux.hosts", 61613, std::chrono::seconds(20));
 //        rpc1.connect("localhost", 14889, std::chrono::seconds(20));
 //        rpc2.connect("localhost", 14889, std::chrono::seconds(20));
-        rpc1.connect("127.0.0.1", 61613, std::chrono::seconds(20));
-        rpc2.connect("127.0.0.1", 61613, std::chrono::seconds(20));
+        //rpc1.connect("127.0.0.1", 61613, std::chrono::seconds(20));
+        //rpc2.connect("127.0.0.1", 61613, std::chrono::seconds(20));
 
         queue.dispatch();
     }

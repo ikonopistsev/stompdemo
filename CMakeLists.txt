@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(STOMPDEMO_STATIC_LIBEVENT "add static libevent" OFF)
 
+if (WIN32)
+    add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
+endif()
+
 #set(EVENT__DISABLE_MBEDTLS ON)
 #set(EVENT__DISABLE_OPENSSL ON)
 #set(EVENT__DISABLE_BENCHMARK ON)
@@ -32,6 +36,6 @@ add_executable(stompdemo main.cpp)
 target_link_libraries(stompdemo PRIVATE event stomptalk stompconn)
 
 if (WIN32)
-    add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
     target_link_libraries(stompdemo PRIVATE ws2_32)
 endif()
+
