@@ -21,9 +21,9 @@ public:
     {   }
 
     template<class Rep, class Period>
-    void connect_localhost(std::chrono::duration<Rep, Period> timeout)
+    void connect_localhost(std::chrono::duration<Rep, Period> timeout, int port = 61613)
     {
-        conn_.connect(btpro::ipv4::loopback(61613), timeout);
+        conn_.connect(btpro::ipv4::loopback(port), timeout);
     }
 
     void on_event(short ef);
