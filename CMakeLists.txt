@@ -9,8 +9,12 @@ if (WIN32)
     add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
 endif()
 
-add_subdirectory(libevent)
-include_directories(libevent/include ${CMAKE_CURRENT_BINARY_DIR}/libevent/include)
+option(STOMPDEMO_STATIC_LIBEVENT "use static libevent" OFF)
+
+if (STOMPDEMO_STATIC_LIBEVENT)
+    add_subdirectory(libevent)
+    include_directories(libevent/include ${CMAKE_CURRENT_BINARY_DIR}/libevent/include)
+endif()
 
 add_subdirectory(stomptalk)
 

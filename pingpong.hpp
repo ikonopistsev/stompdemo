@@ -26,6 +26,8 @@ public:
     void connect(std::string address,
         std::chrono::duration<Rep, Period> timeout, int port = 61613)
     {
+        using namespace std::literals;
+        
         address_ = std::move(address);
 
         cout() << "connect to: "sv << address_ << std::endl;

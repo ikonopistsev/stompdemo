@@ -74,16 +74,24 @@ int main()
 #endif // _WIN32
 
         auto queue = create_queue();
-        auto dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
-        assert(dns);
+        evdns_base* dns = nullptr;
+        dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
 
-        unsubscribe_all unsubs(queue);
+        pingpong server(dns, queue, "a1", "a2");
+        pingpong client(dns, queue, "a2", "a1");
 
-        unsubs.connect_localhost(std::chrono::seconds(20));
+        server.connect("127.0.0.1", std::chrono::seconds(20));
+        client.connect("127.0.0.1", std::chrono::seconds(20));
+
+        //unsubscribe_all unsubs(queue);
+        //unsubs.connect_localhost(std::chrono::seconds(20));
 
         event_base_dispatch(queue);
 
-        evdns_base_free(dns, DNS_ERR_SHUTDOWN);
+        // with dns it never exit normly
+        // it just example
+        if (dns)
+            evdns_base_free(dns, DNS_ERR_SHUTDOWN);
         event_base_free(queue);
     }
     catch (const std::exception& e)
@@ -93,3 +101,4 @@ int main()
 
     return 0;
 }
+

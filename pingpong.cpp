@@ -45,11 +45,8 @@ void pingpong::send_frame()
     frame.push(stomptalk::header::ack_client_individual());
 
     // client send own session as data
-    std::string text = conn_.session();
-    text += '-';
-    text += amqp_message_id;
     stompconn::buffer data;
-    data.append(text);
+    data.append(conn_.session());
     frame.payload(std::move(data));
 
     conn_.send(std::move(frame),[&](stompconn::packet send_receipt){
@@ -96,8 +93,8 @@ void pingpong::on_logon(stompconn::packet logon)
             return;
         }
 
-        // a1 client, a2 server
-        if (read_ == "a1"sv) 
+        // a1 server, a2 clinet
+        if (read_ == "a2"sv) 
         {
             // client
             send_frame();
@@ -107,6 +104,49 @@ void pingpong::on_logon(stompconn::packet logon)
 
 void pingpong::on_subscribe(stompconn::packet frame)
 {
-    auto reply_to = frame.get_reply_to();
+    // a1 server, a2 client
+    if (read_ == "a1"sv)
+    {
+        // server
+        auto reply_to = frame.get_reply_to();
+        if (!reply_to.empty())
+        {
+            auto msg_id = conn_.create_message_id();
+            auto amqp_message_id = stomptalk::sv(msg_id);
+
+            stompconn::send resp(reply_to);
+            resp.push(stomptalk::header::time_since_epoch(stompconn::gettimeofday_cached(queue_)));
+            resp.push(stomptalk::header::amqp_message_id(amqp_message_id));
+
+            auto text = frame.payload().str();
+            cout() << "server recv: " << text << std::endl;
+            stompconn::buffer data;
+            data.append(frame.payload());
+            resp.payload(std::move(data));
+
+            conn_.send(std::move(resp),[&](stompconn::packet receipt) {
+                trace([&] {
+                    return receipt.dump();
+                });
+            });
+        }
+    }
+    else 
+    {
+        // client
+        auto text = frame.payload().str();
+        auto ses = conn_.session(); 
+        cout() << "client recv: " << text << ((text == ses) ? " = "sv : " != "sv) << ses << std::endl;
+    }
+
     auto ack = frame.get_ack();
+    if (!ack.empty())
+    {
+        conn_.ack(frame, [](stompconn::packet receipt){
+            trace([&] {
+                return receipt.dump();
+            });
+        });
+    }
+
 }

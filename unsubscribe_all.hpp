@@ -20,10 +20,15 @@ public:
     {   }
 
     template<class Rep, class Period>
-    void connect_localhost(std::chrono::duration<Rep, Period> timeout, 
-        const std::string& host = std::string("127.0.0.1"), int port = 61613)
+    void connect(const std::string& host, int port, std::chrono::duration<Rep, Period> timeout)
     {
         conn_.connect(nullptr, host, port, timeout);
+    }
+
+    template<class Rep, class Period>
+    void connect_localhost(std::chrono::duration<Rep, Period> timeout, int port = 61613)
+    {
+        conn_.connect(nullptr, "127.0.0.1", 61613, timeout);
     }
 
     void on_event(short ef);
