@@ -2,13 +2,12 @@
 
 #include "main.hpp"
 #include "stompconn/connection.hpp"
-#include "btpro/queue.hpp"
 
 // тест подключения подписки и отписки
 class unsubscribe_all
 {
     using connection = stompconn::connection;
-    btpro::queue& queue_;
+    event_base* queue_{};
 
     connection conn_{ queue_,
         std::bind(&unsubscribe_all::on_event, this, std::placeholders::_1),
@@ -16,14 +15,15 @@ class unsubscribe_all
     };
 
 public:
-    explicit unsubscribe_all(btpro::queue& queue)
+    explicit unsubscribe_all(event_base* queue)
         : queue_(queue)
     {   }
 
     template<class Rep, class Period>
-    void connect_localhost(std::chrono::duration<Rep, Period> timeout, int port = 61613)
+    void connect_localhost(std::chrono::duration<Rep, Period> timeout, 
+        const std::string& host = std::string("127.0.0.1"), int port = 61613)
     {
-        conn_.connect(btpro::ipv4::loopback(port), timeout);
+        conn_.connect(nullptr, host, port, timeout);
     }
 
     void on_event(short ef);

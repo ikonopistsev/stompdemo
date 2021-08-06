@@ -10,18 +10,17 @@ std::ostream& cerr();
 
 std::ostream& cout();
 
-template <class F>
-std::ostream& cout(F fn)
-{
-    auto text = fn();
-    return std::endl(output(std::cout)
-        .write(text.data(), static_cast<std::streamsize>(text.size())));
-}
+bool has_trace() noexcept;
+
+void set_trace(bool value) noexcept;
 
 template <class F>
-std::ostream& cerr(F fn)
+static inline void trace(F fn)
 {
-    auto text = fn();
-    return std::endl(output(std::cerr)
-        .write(text.data(), static_cast<std::streamsize>(text.size())));
+    if (has_trace())
+    {
+        auto text = fn();
+        auto size = static_cast<std::streamsize>(text.size());
+        output(std::cout).write(text.data(), size);
+    }
 }

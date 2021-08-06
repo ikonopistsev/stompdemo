@@ -5,7 +5,7 @@ void unsubscribe_all::on_event(short ef)
     cout() << "disconnect: " << ef << std::endl;
     return;
     // любое событие приводик к закрытию сокета
-    queue_.once(std::chrono::seconds(5), [&](...){
+    conn_.once(std::chrono::seconds(5), [&]{
         connect_localhost(std::chrono::seconds(20));
     });
 }
