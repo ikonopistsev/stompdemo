@@ -62,8 +62,29 @@ event_base* create_queue()
     return queue;
 }
 
+stompconn::buffer data(stompconn::buffer& buf)
+{
+    return stompconn::buffer(std::move(buf));
+}
+
+int small_test()
+{
+    stompconn::buffer one;
+    one.append("123456"sv);
+    auto two = data(one);
+    cout() << "one: " << one.str() << std::endl;
+    cout() << "two: " << two.str() << std::endl;
+    auto ref = two.ref();
+    stompconn::buffer_ref refref(ref);
+    cout() << "ref: " << ref.str() << std::endl;
+    cout() << "refref: " << refref.str() << std::endl;
+    return 0;
+}
+
 int main()
 {
+    //small_test();
+
     try
     {
 #ifdef _WIN32
