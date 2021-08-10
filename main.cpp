@@ -62,7 +62,7 @@ event_base* create_queue()
     return queue;
 }
 
-stompconn::buffer data(stompconn::buffer& buf)
+stompconn::buffer data(stompconn::buffer buf)
 {
     return stompconn::buffer(std::move(buf));
 }
@@ -71,7 +71,7 @@ int small_test()
 {
     stompconn::buffer one;
     one.append("123456"sv);
-    auto two = data(one);
+    auto two = data(std::move(one));
     cout() << "one: " << one.str() << std::endl;
     cout() << "two: " << two.str() << std::endl;
     auto ref = two.ref();
@@ -83,7 +83,7 @@ int small_test()
 
 int main()
 {
-    //small_test();
+    small_test();
 
     try
     {
