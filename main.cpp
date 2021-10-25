@@ -85,7 +85,7 @@ int main()
 
         auto queue = create_queue();
         evdns_base* dns = nullptr;
-        dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
+        // dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
 
         pingpong server(dns, queue, "a1", "a2");
         pingpong client(dns, queue, "a2", "a1");
