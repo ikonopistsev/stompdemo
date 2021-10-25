@@ -59,9 +59,9 @@ namespace {
 
 event_base* create_queue()
 {
-    u::cout() << "stompconn: v"sv << stompconn::version() << std::endl;
-    u::cout() << "stomptalk: v"sv << stomptalk::version() << std::endl;
-    u::cout() << "libevent-"sv << event_get_version() << std::endl;
+    cout() << "stompconn: v"sv << stompconn::version() << std::endl;
+    cout() << "stomptalk: v"sv << stomptalk::version() << std::endl;
+    cout() << "libevent-"sv << event_get_version() << std::endl;
 
     auto queue = event_base_new();
     assert(queue);
@@ -72,6 +72,8 @@ event_base* create_queue()
 
 int main()
 {
+    //small_test();
+
     try
     {
 #ifdef _WIN32
