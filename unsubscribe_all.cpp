@@ -1,8 +1,10 @@
 #include "unsubscribe_all.hpp"
 
+using namespace std::literals;
+
 void unsubscribe_all::on_event(short ef)
 {
-    cout() << "disconnect: " << ef << std::endl;
+    u::cout() << "disconnect: "sv << ef << std::endl;
     return;
     // любое событие приводик к закрытию сокета
     conn_.once(std::chrono::seconds(5), [&]{
@@ -12,7 +14,7 @@ void unsubscribe_all::on_event(short ef)
 
 void unsubscribe_all::on_connect()
 {
-    stompconn::logon logon("stompdemo", "stompdemo", "123");
+    stompconn::logon logon("stompdemo"sv, "stompdemo"sv, "123"sv);
     logon.push(stomptalk::header::heart_beat(10000, 10000));
     conn_.send(std::move(logon),
         std::bind(&unsubscribe_all::on_logon, this, std::placeholders::_1));
@@ -21,38 +23,38 @@ void unsubscribe_all::on_connect()
 void unsubscribe_all::create_subscription()
 {
     // очередь работает только на прием
-    conn_.send(stompconn::subscribe("/queue/a1", [&](auto msg){
-        cout() << msg.dump() << std::endl;
+    conn_.send(stompconn::subscribe("/queue/a1"sv, [&](auto msg){
+        u::cout() << msg.dump() << std::endl;
     }), [&](auto subs) {
-        cout() << subs.dump() << endl2;
+        u::cout() << subs.dump() << u::endl2;
     });
 
     // очередь работает только на прием
-    conn_.send(stompconn::subscribe("/queue/a2", [&](auto msg){
-        cout() << msg.dump() << std::endl;
+    conn_.send(stompconn::subscribe("/queue/a2"sv, [&](auto msg){
+        u::cout() << msg.dump() << std::endl;
     }), [&](auto subs) {
-        cout() << subs.dump() << endl2;
+        u::cout() << subs.dump() << u::endl2;
     });
 
-    stompconn::subscribe a3("/queue/a3", [&](auto msg) {
-        cout() << msg.dump() << std::endl;
+    stompconn::subscribe a3("/queue/a3"sv, [&](auto msg) {
+        u::cout() << msg.dump() << std::endl;
         // любое принятое сообщенеи приводит к отписке от этой очереди
         auto sub_id = msg.get_subscription();
         // отписываемся
         conn_.unsubscribe(sub_id, [&](auto unsubs){
-            cout() << unsubs.dump() << std::endl;
+            u::cout() << unsubs.dump() << std::endl;
 
             // отписка от очереди a3 приводит к отписке
             // от остальных очередей и отправки disconnect
             conn_.unsubscribe_logout([&]{
-                cout() << "unsubscribe_logout" << std::endl;
+                u::cout() << "unsubscribe_logout"sv << std::endl;
             });
         });
     });
 
     // подписываемся
     conn_.send(std::move(a3), [&](stompconn::packet msg){
-        cout() << msg.dump() << endl2;
+        u::cout() << msg.dump() << u::endl2;
     });
 
 }
@@ -65,7 +67,7 @@ void unsubscribe_all::on_logon(stompconn::packet logon)
     else
     {
         conn_.disconnect([]{
-            cout() << "disconnect" << std::endl;
+            u::cout() << "disconnect"sv << std::endl;
         });
     }
 }

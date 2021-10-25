@@ -14,7 +14,7 @@
 #include <signal.h>
 #endif // _WIN32
 
-using namespace std::literals;
+namespace u {
 
 std::ostream& output(std::ostream& os)
 {
@@ -51,40 +51,27 @@ void set_trace(bool value) noexcept
     trace_output = value;
 }
 
+}
+
+using namespace std::literals;
+
+namespace {
+
 event_base* create_queue()
 {
-    cout() << "stompconn: v"sv << stompconn::version() << std::endl;
-    cout() << "stomptalk: v"sv << stomptalk::version() << std::endl;
-    cout() << "libevent-"sv << event_get_version() << std::endl;
+    u::cout() << "stompconn: v"sv << stompconn::version() << std::endl;
+    u::cout() << "stomptalk: v"sv << stomptalk::version() << std::endl;
+    u::cout() << "libevent-"sv << event_get_version() << std::endl;
 
     auto queue = event_base_new();
     assert(queue);
     return queue;
 }
 
-stompconn::buffer data(stompconn::buffer& buf)
-{
-    return stompconn::buffer(std::move(buf));
-}
-
-int small_test()
-{
-    stompconn::buffer one;
-    one.append("123456"sv);
-    auto two = data(one);
-    cout() << "one: " << one.str() << std::endl;
-    cout() << "two: " << two.str() << std::endl;
-    auto ref = two.ref();
-    stompconn::buffer_ref refref(ref);
-    cout() << "ref: " << ref.str() << std::endl;
-    cout() << "refref: " << refref.str() << std::endl;
-    return 0;
-}
+} 
 
 int main()
 {
-    //small_test();
-
     try
     {
 #ifdef _WIN32
@@ -113,11 +100,12 @@ int main()
         // it just example
         if (dns)
             evdns_base_free(dns, DNS_ERR_SHUTDOWN);
+            
         event_base_free(queue);
     }
     catch (const std::exception& e)
     {
-        cerr() << e.what() << std::endl;
+        u::cerr() << e.what() << std::endl;
     }
 
     return 0;
