@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+namespace u {
+
 std::ostream& output(std::ostream& os);
 
 std::ostream& endl2(std::ostream& os);
@@ -23,4 +25,6 @@ static inline void trace(F fn)
         auto size = static_cast<std::streamsize>(text.size());
         output(std::cout).write(text.data(), size);
     }
+}
+
 }

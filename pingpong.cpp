@@ -10,13 +10,13 @@ pingpong::pingpong(evdns_base* dns, event_base* queue,
     , write_(std::move(write))
 {
     conn_.on_error([&](stompconn::packet p) {
-        cout() << p.dump() << endl2;
+        u::cout() << p.dump() << u::endl2;
     });
 }
 
 void pingpong::on_event(short ef)
 {
-    cout() << "disconnect: " << ef << std::endl;
+    u::cout() << "disconnect: "sv << ef << std::endl;
 
     conn_.once(std::chrono::seconds(5), [&] {
          connect(address_, std::chrono::seconds(20));
@@ -25,7 +25,7 @@ void pingpong::on_event(short ef)
 
 void pingpong::on_connect()
 {
-    stompconn::logon logon("stompdemo", "stompdemo", "123");
+    stompconn::logon logon("stompdemo"sv, "stompdemo"sv, "123"sv);
     logon.push(stomptalk::header::heart_beat(10000, 10000));
     conn_.send(std::move(logon),
         std::bind(&pingpong::on_logon, this, std::placeholders::_1));
@@ -52,7 +52,7 @@ void pingpong::send_frame()
     conn_.send(std::move(frame),[&](stompconn::packet send_receipt){
         if (!send_receipt)
         {
-            cout() << send_receipt.dump() << endl2;
+            u::cout() << send_receipt.dump() << u::endl2;
             on_event(BEV_EVENT_EOF);
         }
     });
@@ -62,7 +62,7 @@ void pingpong::on_logon(stompconn::packet logon)
 {
     if (!logon)
     {
-        trace([&] {
+        u::trace([&] {
             return logon.dump();
         });
 
@@ -81,7 +81,7 @@ void pingpong::on_logon(stompconn::packet logon)
 
     conn_.send(std::move(subs), [this](stompconn::packet receipt) {
         if (!receipt) {
-            trace([&] {
+            u::trace([&] {
                 return receipt.dump();
             });
 
@@ -119,13 +119,13 @@ void pingpong::on_subscribe(stompconn::packet frame)
             resp.push(stomptalk::header::amqp_message_id(amqp_message_id));
 
             auto text = frame.payload().str();
-            cout() << "server recv: " << text << std::endl;
+            u::cout() << "server recv: "sv << text << std::endl;
             stompconn::buffer data;
             data.append(frame.payload());
             resp.payload(std::move(data));
 
             conn_.send(std::move(resp),[&](stompconn::packet receipt) {
-                trace([&] {
+                u::trace([&] {
                     return receipt.dump();
                 });
             });
@@ -136,14 +136,14 @@ void pingpong::on_subscribe(stompconn::packet frame)
         // client
         auto text = frame.payload().str();
         auto ses = conn_.session(); 
-        cout() << "client recv: " << text << ((text == ses) ? " = "sv : " != "sv) << ses << std::endl;
+        u::cout() << "client recv: "sv << text << ((text == ses) ? " = "sv : " != "sv) << ses << std::endl;
     }
 
     auto ack = frame.get_ack();
     if (!ack.empty())
     {
         conn_.ack(frame, [](stompconn::packet receipt){
-            trace([&] {
+            u::trace([&] {
                 return receipt.dump();
             });
         });

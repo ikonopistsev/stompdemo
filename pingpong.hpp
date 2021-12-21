@@ -30,7 +30,7 @@ public:
         
         address_ = std::move(address);
 
-        cout() << "connect to: "sv << address_ << std::endl;
+        u::cout() << "connect to: "sv << address_ << std::endl;
         
         conn_.connect(dns_, address_, port, timeout);
     }
