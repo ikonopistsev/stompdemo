@@ -101,8 +101,8 @@ int main()
         pingpong server(dns, queue, "a1", "a2");
         pingpong client(dns, queue, "a2", "a1");
 
-        server.connect("127.0.0.1", std::chrono::seconds(20));
-        client.connect("127.0.0.1", std::chrono::seconds(20));
+        server.connect("192.168.122.1", std::chrono::seconds(20), 14889);
+        client.connect("192.168.122.1", std::chrono::seconds(20), 14889);
 
         //unsubscribe_all unsubs(queue);
         //unsubs.connect_localhost(std::chrono::seconds(20));
