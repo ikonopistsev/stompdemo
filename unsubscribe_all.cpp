@@ -23,20 +23,20 @@ void unsubscribe_all::on_connect()
 void unsubscribe_all::create_subscription()
 {
     // очередь работает только на прием
-    conn_.send(stompconn::subscribe("/queue/a1"sv, [&](auto msg){
+    conn_.send(stompconn::subscribe("/queue/a3"sv, [&](auto msg){
         u::cout() << msg.dump() << std::endl;
     }), [&](auto subs) {
-        u::cout() << subs.dump() << u::endl2;
+        u::cout() << subs.dump() << std::endl;
     });
 
     // очередь работает только на прием
-    conn_.send(stompconn::subscribe("/queue/a2"sv, [&](auto msg){
+    conn_.send(stompconn::subscribe("/queue/a4"sv, [&](auto msg){
         u::cout() << msg.dump() << std::endl;
     }), [&](auto subs) {
-        u::cout() << subs.dump() << u::endl2;
+        u::cout() << subs.dump() << std::endl;
     });
 
-    stompconn::subscribe a3("/queue/a3"sv, [&](auto msg) {
+    stompconn::subscribe a3("/queue/a5"sv, [&](auto msg) {
         u::cout() << msg.dump() << std::endl;
         // любое принятое сообщенеи приводит к отписке от этой очереди
         auto sub_id = msg.get_subscription();
@@ -54,7 +54,7 @@ void unsubscribe_all::create_subscription()
 
     // подписываемся
     conn_.send(std::move(a3), [&](stompconn::packet msg){
-        u::cout() << msg.dump() << u::endl2;
+        u::cout() << msg.dump() << std::endl;
     });
 
 }

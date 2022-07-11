@@ -103,8 +103,8 @@ int main(int argc, char *argv[])
         server.connect(host, std::chrono::seconds(20));
         client.connect(host, std::chrono::seconds(20));
 
-        //unsubscribe_all unsubs(queue);
-        //unsubs.connect_localhost(std::chrono::seconds(20));
+        unsubscribe_all unsubs(queue);
+        unsubs.connect_localhost(std::chrono::seconds(20));
 
         event_base_dispatch(queue);
 
