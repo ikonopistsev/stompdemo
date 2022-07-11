@@ -3,11 +3,14 @@
 #include "unsubscribe_all.hpp"
 #include "stompconn/connection.hpp"
 #include "stompconn/version.hpp"
-#include "stomptalk/version.hpp"
+#include "stomptalk/parser.h"
 
 #include <list>
 #include <string_view>
 #include <functional>
+#include <iostream>
+#include <iomanip>
+#include <chrono>
 #include <stdlib.h>
 
 #ifndef _WIN32
@@ -18,10 +21,14 @@ namespace u {
 
 std::ostream& output(std::ostream& os)
 {
-    time_t t = time(nullptr); 
-    auto ts = std::string_view(ctime(&t));
-    os << ts.substr(0, ts.size() - 1) << ' ';
-    return os;
+    namespace ch = std::chrono;
+    auto n = ch::system_clock::now();
+    auto d = n.time_since_epoch();
+    auto ms = ch::duration_cast<ch::milliseconds>(d).count() % 1000;
+    auto t = static_cast<std::time_t>(ch::duration_cast<ch::seconds>(d).count());
+    auto tm = *std::gmtime(&t);
+    return os << std::put_time(&tm, "%FT%T") 
+        << '.' << std::setfill('0') << std::setw(3) << ms << 'Z' << ' ';
 }
 
 std::ostream& endl2(std::ostream& os)
@@ -60,9 +67,8 @@ namespace {
 event_base* create_queue()
 {
     u::cout() << "stompconn: v"sv << stompconn::version() << std::endl;
-    u::cout() << "stomptalk: v"sv << stomptalk::version() << std::endl;
+    u::cout() << "stomptalk: v"sv << stomptalk_version() << std::endl;
     u::cout() << "libevent-"sv << event_get_version() << std::endl;
-
     auto queue = event_base_new();
     assert(queue);
     return queue;
@@ -70,9 +76,12 @@ event_base* create_queue()
 
 } 
 
-int main()
+int main(int argc, char *argv[])
 {
+    std::string host = "127.0.0.1";
     //small_test();
+    if (argc > 1)
+        host = argv[1];
 
     try
     {
@@ -83,6 +92,7 @@ int main()
         }
 #endif // _WIN32
 
+        //u::set_trace(true);
         auto queue = create_queue();
         evdns_base* dns = nullptr;
         // dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
@@ -90,8 +100,8 @@ int main()
         pingpong server(dns, queue, "a1", "a2");
         pingpong client(dns, queue, "a2", "a1");
 
-        server.connect("192.168.122.1", std::chrono::seconds(20), 14889);
-        client.connect("192.168.122.1", std::chrono::seconds(20), 14889);
+        server.connect(host, std::chrono::seconds(20));
+        client.connect(host, std::chrono::seconds(20));
 
         //unsubscribe_all unsubs(queue);
         //unsubs.connect_localhost(std::chrono::seconds(20));

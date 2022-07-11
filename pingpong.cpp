@@ -14,9 +14,14 @@ pingpong::pingpong(evdns_base* dns, event_base* queue,
     });
 }
 
+std::string_view pingpong::marker() const noexcept
+{
+    return read_ == "a1"sv ? "server"sv : "client"sv;
+}
+
 void pingpong::on_event(short ef)
 {
-    u::cout() << "disconnect: "sv << ef << std::endl;
+    u::cout() << marker() << ' ' << "disconnect: "sv << ef << std::endl;
 
     conn_.once(std::chrono::seconds(5), [&] {
          connect(address_, std::chrono::seconds(20));
@@ -25,8 +30,10 @@ void pingpong::on_event(short ef)
 
 void pingpong::on_connect()
 {
+    u::cout() << marker() << ' ' << "connected"sv << std::endl;
+
     stompconn::logon logon("stompdemo"sv, "stompdemo"sv, "123"sv);
-    logon.push(stomptalk::header::heart_beat(10000, 10000));
+    logon.push(stompconn::header::heart_beat(10000, 10000));
     conn_.send(std::move(logon),
         std::bind(&pingpong::on_logon, this, std::placeholders::_1));
 }
@@ -34,15 +41,15 @@ void pingpong::on_connect()
 void pingpong::send_frame()
 {
     auto msg_id = conn_.create_message_id();
-    auto amqp_message_id = stomptalk::sv(msg_id);
+    auto amqp_message_id = stompconn::sv(msg_id);
 
     // write to a1
     stompconn::send frame(write_);
     // reply to a2
-    frame.push(stomptalk::header::reply_to(read_));
-    frame.push(stomptalk::header::time_since_epoch(stompconn::gettimeofday_cached(queue_)));
-    frame.push(stomptalk::header::amqp_message_id(amqp_message_id));
-    frame.push(stomptalk::header::ack_client_individual());
+    frame.push(stompconn::header::reply_to(read_));
+    frame.push(stompconn::header::timestamp(stompconn::gettimeofday_cached(queue_)));
+    frame.push(stompconn::header::amqp_message_id(amqp_message_id));
+    frame.push(stompconn::header::ack_client_individual());
 
     // client send own session as data
     stompconn::buffer data;
@@ -75,6 +82,8 @@ void pingpong::on_logon(stompconn::packet logon)
     }
 
     // оформляем подписку
+    u::cout() << marker() << ' ' << "logon"sv << std::endl;
+
 
     stompconn::subscribe subs(read_, 
         std::bind(&pingpong::on_subscribe, this, std::placeholders::_1));
@@ -93,10 +102,13 @@ void pingpong::on_logon(stompconn::packet logon)
             return;
         }
 
+        u::cout() << marker() << ' ' << "subscribe on "sv << read_ << std::endl;
+
         // a1 server, a2 clinet
         if (read_ == "a2"sv) 
         {
             // client
+            //u::cout() << marker() << ' ' << "send to "sv << write_ << std::endl;
             send_frame();
         }
     });
@@ -112,14 +124,14 @@ void pingpong::on_subscribe(stompconn::packet frame)
         if (!reply_to.empty())
         {
             auto msg_id = conn_.create_message_id();
-            auto amqp_message_id = stomptalk::sv(msg_id);
+            auto amqp_message_id = stompconn::sv(msg_id);
 
             stompconn::send resp(reply_to);
-            resp.push(stomptalk::header::time_since_epoch(stompconn::gettimeofday_cached(queue_)));
-            resp.push(stomptalk::header::amqp_message_id(amqp_message_id));
+            resp.push(stompconn::header::timestamp(stompconn::gettimeofday_cached(queue_)));
+            resp.push(stompconn::header::amqp_message_id(amqp_message_id));
 
             auto text = frame.payload().str();
-            u::cout() << "server recv: "sv << text << std::endl;
+            //u::cout() << "server recv: "sv << text << std::endl;
             stompconn::buffer data;
             data.append(frame.payload());
             resp.payload(std::move(data));
@@ -136,7 +148,8 @@ void pingpong::on_subscribe(stompconn::packet frame)
         // client
         auto text = frame.payload().str();
         auto ses = conn_.session(); 
-        u::cout() << "client recv: "sv << text << ((text == ses) ? " = "sv : " != "sv) << ses << std::endl;
+        //u::cout() << "client recv: "sv << text << ((text == ses) ? " = "sv : " != "sv) << ses << std::endl;
+        send_frame();
     }
 
     auto ack = frame.get_ack();

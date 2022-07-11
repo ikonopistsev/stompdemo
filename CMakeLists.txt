@@ -17,9 +17,6 @@ if (STOMPDEMO_STATIC_LIBEVENT)
 endif()
 
 add_subdirectory(stomptalk)
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} stomptalk/include)
-
 add_subdirectory(stompconn)
 
 add_executable(stompdemo main.cpp unsubscribe_all.cpp pingpong.cpp)

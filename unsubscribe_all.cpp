@@ -15,7 +15,7 @@ void unsubscribe_all::on_event(short ef)
 void unsubscribe_all::on_connect()
 {
     stompconn::logon logon("stompdemo"sv, "stompdemo"sv, "123"sv);
-    logon.push(stomptalk::header::heart_beat(10000, 10000));
+    logon.push(stompconn::header::heart_beat("10000,10000"sv));
     conn_.send(std::move(logon),
         std::bind(&unsubscribe_all::on_logon, this, std::placeholders::_1));
 }

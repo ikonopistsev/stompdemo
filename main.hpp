@@ -23,7 +23,7 @@ static inline void trace(F fn)
     {
         auto text = fn();
         auto size = static_cast<std::streamsize>(text.size());
-        output(std::cout).write(text.data(), size);
+        output(std::cout).write(text.data(), size) << std::endl;
     }
 }
 
