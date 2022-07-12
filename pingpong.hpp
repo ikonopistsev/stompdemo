@@ -9,9 +9,9 @@ class pingpong
 
     evdns_base* dns_{};
     event_base* queue_;
-    std::string address_{ };
-    std::string read_{ };
-    std::string write_{ };
+    std::string address_{};
+    std::string read_{};
+    std::string write_{};
 
     connection conn_{ queue_,
         std::bind(&pingpong::on_event, this, std::placeholders::_1),
@@ -30,10 +30,12 @@ public:
         
         address_ = std::move(address);
 
-        u::cout() << "connect to: "sv << address_ << std::endl;
+        u::cout() << marker() << " connect to: "sv << address_ << std::endl;
         
         conn_.connect(dns_, address_, port, timeout);
     }
+
+    std::string_view marker() const noexcept;
 
     void on_event(short ef);
 
