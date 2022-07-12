@@ -64,22 +64,35 @@ using namespace std::literals;
 
 namespace {
 
-event_base* create_queue()
+auto create_queue()
 {
     u::cout() << "stompconn: v"sv << stompconn::version() << std::endl;
     u::cout() << "stomptalk: v"sv << stomptalk_version() << std::endl;
     u::cout() << "libevent-"sv << event_get_version() << std::endl;
-    auto queue = event_base_new();
+
+    auto remove = [](event_base* ptr){
+        event_base_free(ptr);
+    };
+    return std::unique_ptr<event_base, 
+        decltype(remove)>{event_base_new(), std::move(remove)};
+}
+
+auto create_dns(event_base* queue)
+{
     assert(queue);
-    return queue;
+    auto dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
+    auto remove = [](evdns_base* ptr){
+        evdns_base_free(ptr, DNS_ERR_SHUTDOWN);
+    };
+    return std::unique_ptr<evdns_base, 
+        decltype(remove)>{dns, remove};
 }
 
 } 
 
 int main(int argc, char *argv[])
 {
-    std::string host = "127.0.0.1";
-    //small_test();
+    std::string host = "localhost";
     if (argc > 1)
         host = argv[1];
 
@@ -92,10 +105,12 @@ int main(int argc, char *argv[])
         }
 #endif // _WIN32
 
-        //u::set_trace(true);
-        auto queue = create_queue();
+        auto q = create_queue();
+        auto queue = q.get();
+
         evdns_base* dns = nullptr;
-        // dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
+        //auto d = create_dns(queue);
+        //dns = d.get();
 
         pingpong server(dns, queue, "a1", "a2");
         pingpong client(dns, queue, "a2", "a1");
@@ -103,17 +118,10 @@ int main(int argc, char *argv[])
         server.connect(host, std::chrono::seconds(20));
         client.connect(host, std::chrono::seconds(20));
 
-        unsubscribe_all unsubs(queue);
-        unsubs.connect_localhost(std::chrono::seconds(20));
+        //unsubscribe_all unsubs(queue);
+        //unsubs.connect_localhost(std::chrono::seconds(20));
 
         event_base_dispatch(queue);
-
-        // with dns it never exit normly
-        // it just example
-        if (dns)
-            evdns_base_free(dns, DNS_ERR_SHUTDOWN);
-            
-        event_base_free(queue);
     }
     catch (const std::exception& e)
     {
