@@ -92,7 +92,8 @@ auto create_dns(event_base* queue)
 
 int main(int argc, char *argv[])
 {
-    std::string host = "localhost";
+    std::string host = "threadtux.lan";
+    //std::string host = "localhost";
     if (argc > 1)
         host = argv[1];
 
@@ -109,8 +110,8 @@ int main(int argc, char *argv[])
         auto queue = q.get();
 
         evdns_base* dns = nullptr;
-        //auto d = create_dns(queue);
-        //dns = d.get();
+        auto d = create_dns(queue);
+        dns = d.get();
 
         pingpong server(dns, queue, "a1", "a2");
         pingpong client(dns, queue, "a2", "a1");

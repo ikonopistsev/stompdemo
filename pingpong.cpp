@@ -87,6 +87,7 @@ void pingpong::on_logon(stompconn::packet logon)
 
     stompconn::subscribe subs(read_, 
         std::bind(&pingpong::on_subscribe, this, std::placeholders::_1));
+    subs.push(stompconn::header::prefetch_count(1));
 
     conn_.send(std::move(subs), [this](stompconn::packet receipt) {
         if (!receipt) {
