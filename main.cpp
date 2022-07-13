@@ -31,11 +31,6 @@ std::ostream& output(std::ostream& os)
         << '.' << std::setfill('0') << std::setw(3) << ms << 'Z' << ' ';
 }
 
-std::ostream& endl2(std::ostream& os)
-{
-    return os << std::endl << std::endl;
-}
-
 std::ostream& cerr()
 {
     return output(std::cerr);
@@ -44,18 +39,6 @@ std::ostream& cerr()
 std::ostream& cout()
 {
     return output(std::cout);
-}
-
-static bool trace_output = false;
-
-bool has_trace() noexcept
-{
-    return trace_output;
-}
-
-void set_trace(bool value) noexcept
-{
-    trace_output = value;
 }
 
 }
@@ -92,8 +75,9 @@ auto create_dns(event_base* queue)
 
 int main(int argc, char *argv[])
 {
-    std::string host = "threadtux.lan";
-    //std::string host = "localhost";
+    std::string host{"threadtux.lan"sv};
+    //std::string host{"localhost"sv};
+    //std::string host{"u1.lan"sv};
     if (argc > 1)
         host = argv[1];
 
@@ -113,8 +97,9 @@ int main(int argc, char *argv[])
         auto d = create_dns(queue);
         dns = d.get();
 
-        pingpong server(dns, queue, "a1", "a2");
-        pingpong client(dns, queue, "a2", "a1");
+        auto server_queue = std::string{"/queue/server-rpc"sv};
+        pingpong server(dns, queue, server_queue, {});
+        pingpong client(dns, queue, {}, server_queue);
 
         server.connect(host, std::chrono::seconds(20));
         client.connect(host, std::chrono::seconds(20));

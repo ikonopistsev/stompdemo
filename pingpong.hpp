@@ -9,6 +9,7 @@ class pingpong
 
     evdns_base* dns_{};
     event_base* queue_;
+    bool server_{false};
     std::string address_{};
     std::string read_{};
     std::string write_{};
@@ -20,7 +21,8 @@ class pingpong
 
 public:
     pingpong(evdns_base* dns, event_base* queue,
-        std::string read, std::string write);
+        std::string read = std::string{},
+        std::string write = std::string{});
 
     template<class Rep, class Period>
     void connect(std::string address,
@@ -30,20 +32,30 @@ public:
         
         address_ = std::move(address);
 
-        u::cout() << marker() << " connect to: "sv << address_ << std::endl;
+        u::cout() << marker() << "connect to: "sv << address_ << std::endl;
         
         conn_.connect(dns_, address_, port, timeout);
     }
 
-    std::string_view marker() const noexcept;
+    std::string_view marker() const noexcept
+    {
+        using namespace std::literals;
+        return server_ ? "server "sv : "client "sv;
+    }
 
     void on_event(short ef);
 
     void on_connect();
 
+    void send_with_subscribe();
+
     void send_frame();
 
     void on_logon(stompconn::packet logon);
 
+    // client messages 
     void on_subscribe(stompconn::packet frame);
+
+    // server reply
+    void on_reply(stompconn::packet frame);
 };
