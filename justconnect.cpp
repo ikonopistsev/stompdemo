@@ -44,6 +44,15 @@ using namespace std::literals;
 
 namespace {
 
+struct erase_libevent {
+    void operator()(event_base* ptr) const {
+        event_base_free(ptr);
+    }
+    void operator()(evdns_base* ptr) const {
+        evdns_base_free(ptr, DNS_ERR_SHUTDOWN);
+    }
+};
+
 auto create_queue()
 {
     u::cout() << "stompconn: v"sv << stompconn::version() << std::endl;
@@ -55,18 +64,15 @@ auto create_queue()
             event_base_free(ptr);
         }
     };
-    return std::unique_ptr<event_base, erase_event_base>{event_base_new()};
+    auto base = event_base_new();
+    return std::unique_ptr<event_base, erase_libevent>{base};
 }
 
 auto create_dns(event_base* queue)
 {
     assert(queue);
     auto dns = evdns_base_new(queue, EVDNS_BASE_INITIALIZE_NAMESERVERS);
-    auto remove = [](evdns_base* ptr){
-        evdns_base_free(ptr, DNS_ERR_SHUTDOWN);
-    };
-    return std::unique_ptr<evdns_base, 
-        decltype(remove)>{dns, std::move(remove)};
+    return std::unique_ptr<evdns_base, erase_libevent>{dns};
 }
 
 class justconnect
