@@ -110,14 +110,20 @@ public:
                 u::cerr() << "unable to connect"sv << std::endl;
             
             if (ef & BEV_EVENT_EOF)
+            {
                 u::cerr() << "connection closed"sv << std::endl;
+            }
 
             if (ef & BEV_EVENT_ERROR)
                 u::cerr() << "connection error"sv << std::endl;
 
             if (ef == (BEV_EVENT_READING|BEV_EVENT_TIMEOUT))
                 u::cerr() << "connection timeout"sv << std::endl;
-        }
+
+            // для примера остановим обработку очереди
+            // чтобы приложение завершилось
+            event_base_loopbreak(queue_);
+       }
     }
 
     void on_connect()
@@ -126,12 +132,7 @@ public:
 
         stompconn::stomplay::logon cmd("/"sv, "stomp"sv, "st321"sv);
         cmd.push(stompconn::stomplay::header::heart_beat(3000, 3000));
-
-        auto cmd_str = cmd.str();
-        // заменим протокольные переносы строк на символ ';' кроме первого
-        std::replace(std::begin(cmd_str), std::begin(cmd_str) + 8, '\n', ' ');
-        std::replace(std::begin(cmd_str) + 8, std::end(cmd_str), '\n', ';');
-        u::cout() << cmd_str << std::endl;
+        u::cout() << cmd.dump() << std::endl;
 
         // после отправки cmd приходит в негодность
         conn_.send(std::move(cmd), [&](auto frame) {
@@ -143,18 +144,28 @@ public:
             u::cout() << "+ 2.server: "sv << frame.get(st_header_server) << std::endl;
             u::cout() << "+ 1.session: "sv << frame.get(st_header_session) << std::endl;
             u::cout() << "+ 2.session: "sv << frame.session() << std::endl;
+
+            // отключимся через 5 секунд
+            // после успешной авторизации
+            logout(std::chrono::seconds(5));
         });
     }
 
     template<class Rep, class Period>
     void logout(std::chrono::duration<Rep, Period> timeout)
     {
-        conn_.at_running([&]{
-            conn_.once(timeout, [&]{
+        conn_.once(timeout, [&]{
+            try {
+                // отправим команду на отключение
+                // сервер разорвет соединение после ответа
                 conn_.logout([](auto frame) {
                     u::cout() << frame.dump() << std::endl;
                 });
-            });
+            }
+            catch (const std::exception& e)
+            {
+                u::cerr() << e.what() << std::endl;
+            }
         });
     }
 };
@@ -179,15 +190,12 @@ int main(int argc, char *argv[])
 
         auto q = create_queue();
         auto queue = q.get();
-        //auto d = create_dns(queue);
+        auto d = create_dns(queue);
 
-        justconnect c{nullptr, queue};
+        justconnect c{d.get(), queue};
         
         // подключаемся к серверу
         c.connect(host, std::chrono::seconds(20));
-
-        // отключаемся через
-        c.logout(std::chrono::seconds(20));
 
         event_base_dispatch(queue);
     }
