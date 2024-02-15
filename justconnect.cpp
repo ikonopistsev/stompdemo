@@ -14,6 +14,8 @@
 #include <signal.h>
 #endif // _WIN32
 
+using namespace std::literals;
+
 namespace u {
 
 std::ostream& output(std::ostream& os)
@@ -38,9 +40,7 @@ std::ostream& cout()
     return output(std::cout);
 }
 
-}
-
-using namespace std::literals;
+} // namespace u
 
 namespace {
 
@@ -90,7 +90,6 @@ public:
         });
     }
 
-
     template<class Rep, class Period>
     void connect(const std::string& host,
         std::chrono::duration<Rep, Period> timeout, int port = 61613)
@@ -131,7 +130,7 @@ public:
         u::cout() << "tcp ok"sv << std::endl;
 
         stompconn::stomplay::logon cmd("/"sv, "stomp"sv, "st321"sv);
-        cmd.push(stompconn::stomplay::header::heart_beat(3000, 3000));
+        cmd.push(stompconn::stomplay::header::heart_beat(1000, 1000));
         u::cout() << cmd.dump() << std::endl;
 
         // после отправки cmd приходит в негодность
@@ -145,9 +144,9 @@ public:
             u::cout() << "+ 1.session: "sv << frame.get(st_header_session) << std::endl;
             u::cout() << "+ 2.session: "sv << frame.session() << std::endl;
 
-            // отключимся через 5 секунд
+            // отключимся через 10 секунд
             // после успешной авторизации
-            logout(std::chrono::seconds(5));
+            logout(std::chrono::seconds(10));
         });
     }
 
@@ -174,8 +173,8 @@ public:
 
 int main(int argc, char *argv[])
 {
-    std::string host{"server.lan"sv};
-    //std::string host{"localhost"sv};
+    // in /etc/hosts
+    std::string host{"rabbitmq.lan"sv};
     if (argc > 1)
         host = argv[1];
 
