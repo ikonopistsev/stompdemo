@@ -37,5 +37,5 @@ public:
 
     void create_subscription();
 
-    void on_logon(stompconn::packet logon);
+    void on_logon(stompconn::stomplay::frame logon);
 };

@@ -1,6 +1,6 @@
 #include "main.hpp"
-#include "pingpong.hpp"
-#include "unsubscribe_all.hpp"
+// #include "pingpong.hpp"
+// #include "unsubscribe_all.hpp"
 #include "stompconn/connection.hpp"
 #include "stompconn/version.hpp"
 #include "stomptalk/parser.h"
@@ -68,16 +68,14 @@ auto create_dns(event_base* queue)
         evdns_base_free(ptr, DNS_ERR_SHUTDOWN);
     };
     return std::unique_ptr<evdns_base, 
-        decltype(remove)>{dns, remove};
+        decltype(remove)>{dns, std::move(remove)};
 }
 
 } 
 
 int main(int argc, char *argv[])
 {
-    std::string host{"threadtux.lan"sv};
-    //std::string host{"localhost"sv};
-    //std::string host{"u1.lan"sv};
+    std::string host{"127.0.0.1"sv};
     if (argc > 1)
         host = argv[1];
 
@@ -97,12 +95,12 @@ int main(int argc, char *argv[])
         auto d = create_dns(queue);
         dns = d.get();
 
-        auto server_queue = std::string{"/queue/server-rpc"sv};
-        pingpong server(dns, queue, server_queue, {});
-        pingpong client(dns, queue, {}, server_queue);
+        // auto server_queue = std::string{"/queue/server-rpc"sv};
+        // pingpong server(dns, queue, server_queue, {});
+        // pingpong client(dns, queue, {}, server_queue);
 
-        server.connect(host, std::chrono::seconds(20));
-        client.connect(host, std::chrono::seconds(20));
+        // server.connect(host, std::chrono::seconds(20));
+        // client.connect(host, std::chrono::seconds(20));
 
         //unsubscribe_all unsubs(queue);
         //unsubs.connect_localhost(std::chrono::seconds(20));

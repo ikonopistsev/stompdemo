@@ -51,11 +51,11 @@ public:
 
     void send_frame();
 
-    void on_logon(stompconn::packet logon);
+    void on_logon(stompconn::stomplay::frame logon);
 
     // client messages 
-    void on_subscribe(stompconn::packet frame);
+    void on_subscribe(stompconn::stomplay::frame frame);
 
     // server reply
-    void on_reply(stompconn::packet frame);
+    void on_reply(stompconn::stomplay::frame frame);
 };

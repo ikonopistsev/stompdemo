@@ -19,9 +19,12 @@ endif()
 add_subdirectory(stomptalk)
 add_subdirectory(stompconn)
 
-add_executable(stompdemo main.cpp unsubscribe_all.cpp pingpong.cpp)
+#add_executable(stompdemo main.cpp unsubscribe_all.cpp pingpong.cpp)
+add_executable(stompdemo main.cpp)
+add_executable(justconnect justconnect.cpp)
 
 target_link_libraries(stompdemo PRIVATE event stomptalk stompconn)
+target_link_libraries(justconnect PRIVATE event stomptalk stompconn)
 
 if (WIN32)
     target_link_libraries(stompdemo PRIVATE ws2_32)

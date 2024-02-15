@@ -1,6 +1,7 @@
 #include "pingpong.hpp"
 
 using namespace std::literals;
+using namespace stompconn;
 
 pingpong::pingpong(evdns_base* dns, event_base* queue,
     std::string read, std::string write)
@@ -10,7 +11,7 @@ pingpong::pingpong(evdns_base* dns, event_base* queue,
     , read_{std::move(read)}
     , write_{std::move(write)}
 {
-    conn_.on_error([&](stompconn::packet p) {
+    conn_.on_error([&](stomplay::frame p) {
         u::cout() << marker() << p.dump() << std::endl;
     });
 }
@@ -28,8 +29,8 @@ void pingpong::on_connect()
 {
     u::cout() << marker() << "connected"sv << std::endl;
 
-    stompconn::logon logon("stompdemo"sv, "stompdemo"sv, "123"sv);
-    logon.push(stompconn::header::heart_beat(10000, 10000));
+    stomplay::logon logon("stompdemo"sv, "stompdemo"sv, "123"sv);
+    logon.push(stomplay::header::heart_beat(10000, 10000));
     conn_.send(std::move(logon),
         std::bind(&pingpong::on_logon, this, std::placeholders::_1));
 }
@@ -89,13 +90,10 @@ void pingpong::send_frame()
     frame.payload(std::move(data));
 
     conn_.send(std::move(frame),[&](stompconn::packet receipt){
-        if (!receipt)
-        {
+        if (!receipt) {
             u::cout() << receipt.dump() << std::endl;
             on_event(BEV_EVENT_EOF);
-        } 
-        else 
-        {
+        } else {
             u::trace([&] {
                 return receipt.dump();
             });
@@ -158,11 +156,10 @@ void pingpong::on_subscribe(stompconn::packet frame)
     if (!reply_to.empty())
     {
         auto msg_id = conn_.create_message_id();
-        auto amqp_message_id = stompconn::sv(msg_id);
 
         stompconn::send resp(reply_to);
         resp.push(stompconn::header::timestamp(stompconn::gettimeofday_cached(queue_)));
-        resp.push(stompconn::header::amqp_message_id(amqp_message_id));
+        resp.push(stompconn::header::amqp_message_id(msg_id));
 
         auto text = frame.payload().str();
         //u::cout() << "server recv: "sv << text << std::endl;
