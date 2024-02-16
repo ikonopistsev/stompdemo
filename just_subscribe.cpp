@@ -77,7 +77,8 @@ class justconnect
     event_base* queue_{};
 
     connection conn_{ queue_, 
-        [&](auto ef) { on_event(ef); } };
+        [&](auto ef) { on_event(ef); } 
+    };
 
 public:
     justconnect(evdns_base* dns, event_base* queue)
@@ -85,6 +86,8 @@ public:
         , queue_{queue}
     {   
         // прием сообщения об ошибке
+        // от сервера: кадр ERROR
+        // https://stomp.github.io/stomp-specification-1.2.html#ERROR
         conn_.on_error([](auto frame) {
             u::cerr() << frame.dump() << std::endl;
         });
@@ -120,7 +123,6 @@ public:
                 u::cerr() << "connection timeout"sv << std::endl;
 
             // для примера остановим обработку очереди
-            // чтобы приложение завершилось
             event_base_loopbreak(queue_);
        }
     }
@@ -150,8 +152,8 @@ public:
         });
     }
 
-    template<class Rep, class Period>
-    void logout(std::chrono::duration<Rep, Period> timeout)
+    template<class T>
+    void logout(T timeout)
     {
         conn_.once(timeout, [&]{
             try {
