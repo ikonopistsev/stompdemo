@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <chrono>
 #include <stdlib.h>
+#include <atomic>
 
 #ifndef _WIN32
 #include <signal.h>
@@ -69,19 +70,21 @@ auto create_dns(event_base* queue)
     return std::unique_ptr<evdns_base, event_erase>{dns};
 }
 
-class justconnect
+class justsubscribe
 {
     using connection = stompconn::connection;
 
     evdns_base* dns_{};
     event_base* queue_{};
 
+    std::size_t try_subs_{ 16 };
+
     connection conn_{ queue_, 
         [&](auto ef) { on_event(ef); } 
     };
 
 public:
-    justconnect(evdns_base* dns, event_base* queue)
+    justsubscribe(evdns_base* dns, event_base* queue)
         : dns_{dns}
         , queue_{queue}
     {   
@@ -127,12 +130,50 @@ public:
        }
     }
 
+    void do_subscribe()
+    {
+        stompconn::stomplay::subscribe subs("/queue/just_subs"sv, [&](auto frame) {
+            u::cout() << "RECV: " << frame.dump() << std::endl;            
+        });
+
+
+        // отправим команду на подписку
+        conn_.send(std::move(subs), [&](auto frame) {
+            u::cout() << "SUBS OK: "sv << frame.dump() << std::endl;
+
+            // подписываемся и отписываемся несколько раз
+            if (--try_subs_ > 0)
+            {
+                conn_.once(std::chrono::milliseconds(0), 
+                    [&, subs_id = std::string{frame.get_subscription()}] {
+                        do_unsubscribe(subs_id);
+                });
+            }
+            else
+            {
+                u::cout() << "done"sv << std::endl;
+            }
+        });
+    }
+
+    void do_unsubscribe(std::string_view id)
+    {
+        conn_.unsubscribe(id, [&](auto frame) {
+            u::cout() << "UNSUBS OK: "sv << frame.dump() << std::endl;
+
+            conn_.once(std::chrono::milliseconds(0), 
+                [&] {
+                    do_subscribe();
+            });
+        });
+    }
+
     void on_connect()
     {
         u::cout() << "tcp ok"sv << std::endl;
 
         stompconn::stomplay::logon cmd("/"sv, "stomp"sv, "st321"sv);
-        cmd.push(stompconn::stomplay::header::heart_beat(1000, 1000));
+        cmd.push(stompconn::stomplay::header::heart_beat(30000, 30000));
         u::cout() << cmd.dump() << std::endl;
 
         // после отправки cmd приходит в негодность
@@ -146,9 +187,11 @@ public:
             u::cout() << "+ 1.session: "sv << frame.get(st_header_session) << std::endl;
             u::cout() << "+ 2.session: "sv << frame.session() << std::endl;
 
+            do_subscribe();
+
             // отключимся через 10 секунд
             // после успешной авторизации
-            logout(std::chrono::seconds(10));
+            // logout(std::chrono::seconds(60));
         });
     }
 
@@ -171,7 +214,7 @@ public:
     }
 };
 
-} 
+}
 
 int main(int argc, char *argv[])
 {
@@ -193,7 +236,9 @@ int main(int argc, char *argv[])
         auto queue = q.get();
         auto d = create_dns(queue);
 
-        justconnect c{d.get(), queue};
+        u::cout() << "just connect!"sv << std::endl;
+
+        justsubscribe c{d.get(), queue};
         
         // подключаемся к серверу
         c.connect(host, std::chrono::seconds(20));
